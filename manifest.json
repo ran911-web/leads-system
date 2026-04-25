@@ -1,0 +1,27 @@
+{
+  "name": "מעקב לידים",
+  "short_name": "מעקב לידים",
+  "description": "מערכת מעקב לידים - מורן צויבל",
+  "start_url": "/leads-system/",
+  "scope": "/leads-system/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#1a2f5e",
+  "theme_color": "#1a2f5e",
+  "lang": "he",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
