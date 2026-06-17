@@ -23,5 +23,14 @@
       "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/leads-system/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "shared_text",
+      "url": "url"
+    }
+  }
 }
