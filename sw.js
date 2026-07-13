@@ -1,4 +1,4 @@
-const CACHE = 'leads-v3';
+const CACHE = 'leads-v4';
 self.addEventListener('install', e=>{ self.skipWaiting(); });
 self.addEventListener('activate', e=>{
   e.waitUntil(caches.keys().then(keys=>
@@ -8,9 +8,12 @@ self.addEventListener('activate', e=>{
 });
 self.addEventListener('fetch', e=>{
   if(e.request.url.includes('supabase.co')) return;
+  let u; try{ u=new URL(e.request.url); }catch(_){ u=null; }
+  // אל תשמור בקאש בקשות עם query string (share target / פרמטרים רגישים)
+  const hasQuery = u && u.search && u.search.length>0;
   e.respondWith(
     fetch(e.request).then(res=>{
-      if(res.ok && e.request.method==='GET'){
+      if(res.ok && e.request.method==='GET' && !hasQuery){
         const clone=res.clone();
         caches.open(CACHE).then(c=>c.put(e.request,clone));
       }
