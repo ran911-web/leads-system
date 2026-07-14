@@ -1,4 +1,4 @@
-const CACHE = 'leads-v5';
+const CACHE = 'leads-v6';
 self.addEventListener('install', e=>{ self.skipWaiting(); });
 self.addEventListener('activate', e=>{
   e.waitUntil(caches.keys().then(keys=>
@@ -14,12 +14,16 @@ self.addEventListener('fetch', e=>{
       try{
         const form = await e.request.formData();
         const text = form.get('shared_text')||form.get('text')||'';
-        // שמור זמנית ב-cache פנימי (לא ב-URL) ונ turn הפניה נקייה לאפליקציה
         const cache = await caches.open('share-temp');
-        await cache.put('/leads-system/__shared', new Response(text||'', {headers:{'Content-Type':'text/plain'}}));
+        // מחק תוכן ישן קודם — לא להשאיר שאריות מ-share קודם
+        try{ const keys=await cache.keys(); await Promise.all(keys.map(k=>cache.delete(k))); }catch(_){}
+        // שמור עם חותמת זמן כדי שהאפליקציה תוכל להתעלם מתוכן ישן
+        const payload=JSON.stringify({ text: text||'', ts: Date.now() });
+        await cache.put('/leads-system/__shared', new Response(payload, {headers:{'Content-Type':'application/json'}}));
       }catch(err){}
-      // הפניה נקייה ל-scope בלי query string
-      return Response.redirect('/leads-system/?shared=1', 303);
+      // הפניה נקייה, נבנית מ-origin האמיתי
+      const redirectUrl = new URL('/leads-system/?shared=1', self.location.origin).href;
+      return Response.redirect(redirectUrl, 303);
     })());
     return;
   }
