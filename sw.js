@@ -1,4 +1,4 @@
-const CACHE = 'leads-v4';
+const CACHE = 'leads-v5';
 self.addEventListener('install', e=>{ self.skipWaiting(); });
 self.addEventListener('activate', e=>{
   e.waitUntil(caches.keys().then(keys=>
@@ -7,6 +7,22 @@ self.addEventListener('activate', e=>{
   self.clients.claim();
 });
 self.addEventListener('fetch', e=>{
+  // Share Target POST — קלוט את הטקסט המשותף בלי לחשוף אותו ב-URL
+  const reqUrl = new URL(e.request.url);
+  if(e.request.method==='POST' && reqUrl.pathname.endsWith('/share-target')){
+    e.respondWith((async()=>{
+      try{
+        const form = await e.request.formData();
+        const text = form.get('shared_text')||form.get('text')||'';
+        // שמור זמנית ב-cache פנימי (לא ב-URL) ונ turn הפניה נקייה לאפליקציה
+        const cache = await caches.open('share-temp');
+        await cache.put('/leads-system/__shared', new Response(text||'', {headers:{'Content-Type':'text/plain'}}));
+      }catch(err){}
+      // הפניה נקייה ל-scope בלי query string
+      return Response.redirect('/leads-system/?shared=1', 303);
+    })());
+    return;
+  }
   if(e.request.url.includes('supabase.co')) return;
   let u; try{ u=new URL(e.request.url); }catch(_){ u=null; }
   // אל תשמור בקאש בקשות עם query string (share target / פרמטרים רגישים)
