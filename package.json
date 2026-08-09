@@ -1,0 +1,12 @@
+{
+  "name": "leads-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "מערכת מעקב לידים — התחדשות עירונית (קבוצת עמיסף)",
+  "scripts": {
+    "test": "python3 tests/run_tests.py",
+    "test:syntax": "node tests/check_syntax.js",
+    "test:setup": "pip install playwright && python3 -m playwright install chromium"
+  },
+  "license": "UNLICENSED"
+}
