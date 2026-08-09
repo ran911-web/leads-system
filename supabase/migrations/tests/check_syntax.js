@@ -8,7 +8,19 @@ const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
 
-const file = process.argv[2] || path.join(__dirname, '..', 'index.html');
+// אתר את index.html: מהנתיב שנמסר, או חפש כלפי מעלה עד שורש הריפו
+function findIndex(start){
+  let dir = start;
+  for (let i = 0; i < 6; i++) {
+    const p = path.join(dir, 'index.html');
+    if (fs.existsSync(p)) return p;
+    const up = path.dirname(dir);
+    if (up === dir) break;
+    dir = up;
+  }
+  return path.join(start, '..', 'index.html');
+}
+const file = process.argv[2] || findIndex(__dirname);
 if (!fs.existsSync(file)) { console.error('❌ לא נמצא הקובץ: ' + file); process.exit(1); }
 const html = fs.readFileSync(file, 'utf8');
 
