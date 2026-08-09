@@ -15,7 +15,20 @@ import sys, os, json, time, shutil, tempfile
 from playwright.sync_api import sync_playwright
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, '..', 'index.html')
+def _find_index(start):
+    """אתר את index.html — חפש כלפי מעלה עד שורש הריפו (עובד מכל מיקום)."""
+    d = start
+    for _ in range(6):
+        cand = os.path.join(d, 'index.html')
+        if os.path.exists(cand):
+            return cand
+        up = os.path.dirname(d)
+        if up == d:
+            break
+        d = up
+    return os.path.join(start, '..', 'index.html')
+
+SRC = sys.argv[1] if len(sys.argv) > 1 else _find_index(HERE)
 if not os.path.exists(SRC):
     print("❌ לא נמצא הקובץ: " + SRC); sys.exit(1)
 
