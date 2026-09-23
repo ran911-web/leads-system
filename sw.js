@@ -1,4 +1,4 @@
-const CACHE = 'leads-v6';
+const CACHE = 'leads-v7';
 self.addEventListener('install', e=>{ self.skipWaiting(); });
 self.addEventListener('activate', e=>{
   e.waitUntil(caches.keys().then(keys=>
@@ -31,23 +31,16 @@ self.addEventListener('fetch', e=>{
   let u; try{ u=new URL(e.request.url); }catch(_){ u=null; }
   // אל תשמור בקאש בקשות עם query string (share target / פרמטרים רגישים)
   const hasQuery = u && u.search && u.search.length>0;
+  // דף האפליקציה עצמו: תמיד בדיקה מול השרת (no-cache) — אחרת GitHub Pages
+  // מאפשר לדפדפן להציג גרסה ישנה עד 10 דקות אחרי העלאה. השרת עונה 304 כשאין שינוי.
+  const isPage = e.request.mode==='navigate' || (u && /\.html?$|\/$/.test(u.pathname));
   e.respondWith(
-    fetch(e.request).then(res=>{
+    (isPage ? fetch(e.request.url, {cache:'no-cache', credentials:'same-origin'}) : fetch(e.request)).then(res=>{
       if(res.ok && e.request.method==='GET' && !hasQuery){
         const clone=res.clone();
         caches.open(CACHE).then(c=>c.put(e.request,clone));
       }
       return res;
     }).catch(()=>caches.match(e.request))
-  );
-});
-// Notification click — focus or open the app
-self.addEventListener('notificationclick', e=>{
-  e.notification.close();
-  e.waitUntil(
-    clients.matchAll({type:'window', includeUncontrolled:true}).then(list=>{
-      for(const c of list){ if('focus' in c) return c.focus(); }
-      if(clients.openWindow) return clients.openWindow('/leads-system/');
-    })
   );
 });
