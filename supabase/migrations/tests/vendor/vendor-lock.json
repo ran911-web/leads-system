@@ -1,0 +1,21 @@
+{
+  "description": "תלויות דפדפן מקובעות לבדיקות — נטענות מקומית, ללא CDN בזמן ריצה",
+  "vendored": {
+    "exceljs-4.4.0.min.js": {
+      "package": "exceljs",
+      "version": "4.4.0",
+      "origin": "https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js",
+      "bytes": 947702,
+      "integrity": "sha384-Pqp51FUN2/qzfxZxBCtF0stpc9ONI6MYZpVqmo8m20SoaQCzf+arZvACkLkirlPz",
+      "sha256": "7e49da68588e250dbb8bba190d2caa8ab3787cc0284bda1d8b2f805c4df742c9"
+    },
+    "supabase-js-2.110.2.umd.js": {
+      "package": "@supabase/supabase-js",
+      "version": "2.110.2",
+      "origin": "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.2/dist/umd/supabase.js",
+      "bytes": 206365,
+      "integrity": "sha384-yifgV8iFWyp5cgu+V1G1rtlEHpEErPlL5fTrkUELIsWq0CIVDON2WP/NlXVJT3vO",
+      "sha256": "21035ce4ffb6f1d6c5ba5344bbac8309bf394cdbba0b1371267a05a1d811fed8"
+    }
+  }
+}

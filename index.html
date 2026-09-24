@@ -708,6 +708,8 @@ body.tab-not-leads #kpiGrid{display:none!important;}
 .imp-opt.on{background:#eff6ff;border-color:var(--blue);}
 .imp-opt:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
 @media(max-width:640px){ .imp-opt{font-size:13px;padding:9px 6px;} .imp-opt span{font-size:10px;} }
+.metric-def{font-size:10.5px;font-weight:600;color:var(--text2);margin:-6px 0 10px;line-height:1.4;}
+.cr-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}.cr-txt{flex:1;min-width:0;font-size:12.5px;line-height:1.5}.cr-txt span{color:var(--text2);font-size:11px}.cr-act{display:flex;gap:6px;flex:none}
 </style>
 </head>
 <body>
@@ -1216,6 +1218,8 @@ body.tab-not-leads #kpiGrid{display:none!important;}
           <div class="form-group" id="e_winCompanyGroup" style="display:none">
             <label>חברה זוכה 🏆</label>
             <input type="text" id="e_winCompany" placeholder="שם החברה">
+            <label style="margin-top:8px">תאריך הזכייה</label>
+            <input type="date" id="e_winDate" title="ריק = לפי תאריך שינוי הסטטוס">
           </div>
           <div class="form-group" id="e_archGroup" style="display:none">
             <label>👷 שם האדריכל</label>
@@ -1731,10 +1735,14 @@ async function doLogin(){
     const { error } = await sb.auth.signInWithPassword({ email, password: pass });
     if(error) throw error;
     // אמת מול השרת לפני הצגת נתונים
+    const _gen=window.__syncGen;
     const { data:{ user }, error:uErr } = await sb.auth.getUser();
     if(uErr || !user) throw new Error('auth verification failed');
+    if(window.__syncGen!==_gen) return;          // התרחשה יציאה בזמן ההמתנה — לא לפתוח
+    window.__authUserId=user.id;
     // טען תחילה — בטל נעילה רק בהצלחה
     const loaded = await loadFromSupabase();
+    if(window.__syncGen!==_gen) return;
     if(!loaded){ throw new Error('load failed'); }
     unlockAppShell();
     startInactivityTimer();
@@ -1753,11 +1761,14 @@ async function checkSession(){
   try{
     const { data:{ session } } = await sb.auth.getSession();
     if(!session){ showLoginScreen(); return; }
+    const _gen=window.__syncGen;
     const { data:{ user }, error } = await sb.auth.getUser();
     if(error || !user){ await forceLogout(); return; }
+    if(window.__syncGen!==_gen) return;          // התרחשה יציאה בזמן ההמתנה — לא לפתוח
+    window.__authUserId=user.id;
     // טען תחילה — בטל נעילה רק אם הטעינה הצליחה (אחרת נשאר hidden+inert)
     const loaded = await loadFromSupabase();
-    if(!loaded) return;
+    if(!loaded || window.__syncGen!==_gen) return;
     unlockAppShell();
     startInactivityTimer();
   }catch(e){
@@ -1897,10 +1908,16 @@ async function secureLogout(silent){
   if(!synced && !silent){
     const n=(saveData._ps && saveData._ps.size)?saveData._ps.size:0;
     if(!confirm('⚠️ '+(n?n+' שינויים ':'שינויים ')+'לא הגיעו לענן.\n\n'+
-                'אם תתנתק הם יישמרו מוצפנים במכשיר וישוחזרו אוטומטית בהתחברות הבאה שלך.\n'+
+                'אם תתנתק הם יישמרו באחסון המקומי של הדפדפן במכשיר זה (לא מוצפנים) ויישלחו לענן אוטומטית בהתחברות הבאה שלך.\n'+
                 'המידע לא יוצג כל עוד אינך מחובר.\n\nלהתנתק?')) return;
     await _wipeAndLogout(true);   // שמר את השינויים לשחזור
     return;
+  }
+  // טיוטת ליד שלא נשמרה — אזהרה מפורשת לפני מחיקה (אפשר לבטל ולשמור קודם את הליד)
+  let _hasDraft=false; try{ _hasDraft=!!localStorage.getItem(LEAD_DRAFT_KEY); }catch(e){}
+  if(_hasDraft && !silent){
+    if(!confirm('📝 יש טיוטת ליד חדש שלא נשמרה.\n\nביציאה היא תימחק מהמכשיר.\nביטול = חזרה למערכת כדי לשמור אותה.\n\nלהתנתק ולמחוק את הטיוטה?')) return;
+    clearLeadDraft();
   }
   await _wipeAndLogout(false);    // הכול מסונכרן — מחיקה מלאה
 }
@@ -1914,7 +1931,7 @@ async function _wipeAndLogout(keepUnsynced){
   if(saveData._ps) saveData._ps.clear();
   // F06: כשיש שינויים שטרם סונכרנו — שמר את הגיבוי ואת תור השחזור,
   // כדי שיישחזרו אחרי אימות מחדש. אחרת מחק הכול.
-  const keys = keepUnsynced ? ['contacts_v1'] : ['leads_tracker_v4','contacts_v1','pendingSaveQueue','leadDraft_v1'];
+  const keys = keepUnsynced ? ['contacts_v1'] : ['leads_tracker_v4','contacts_v1','pendingSaveQueue','leadOutbox_v1','leadTombstones_v1','leadConflicts_v1'];
   keys.forEach(k=>{try{localStorage.removeItem(k);}catch(e){}});
   // מחק אסימוני Supabase
   try{
@@ -1931,6 +1948,7 @@ async function clearDeviceData(){
     if(!confirm('🗑 יש שינויים שטרם סונכרנו — הם יימחקו לצמיתות ולא ניתן יהיה לשחזרם.\n\nלהמשיך?')) return;
   }
   try{ if('caches' in window){ const ks=await caches.keys(); await Promise.all(ks.map(k=>caches.delete(k))); } }catch(e){}
+  clearLeadDraft();
   await _wipeAndLogout(false);   // מחיקה מכוונת ומוצהרת
 }
 
@@ -1946,6 +1964,7 @@ let _isDirty = false; // יש שינויים מקומיים שלא נשמרו ע
 // דור הסשן: עולה בכל התחברות/התנתקות. גרסת השינויים: עולה בכל עריכה מקומית.
 // יחד הם מאפשרים לזהות תשובת סנכרון שהתיישנה בזמן ההמתנה לשרת.
 window.__syncGen = window.__syncGen || 0;
+window.__reloadSeq = window.__reloadSeq || 0;
 window.__localRev = window.__localRev || 0;
 window.__lastAppliedSync = window.__lastAppliedSync || 0;
 window.__syncSeq = window.__syncSeq || 0;
@@ -1965,6 +1984,7 @@ async function reloadFromSupabase(silent){
   if((eo&&eo.classList.contains('open'))||(fo&&fo.classList.contains('open'))) return;
   // צלם את המצב לפני ההמתנה, כדי לאמת אותו אחריה
   const genAtStart = window.__syncGen;
+  const _seq = ++window.__reloadSeq;   // D08: רק הבקשה האחרונה קובעת (הצלחה או כשל)
   const revAtStart = window.__localRev;
   const mySeq      = ++window.__syncSeq;
   // טביעת אצבע של הנתונים המקומיים — תופסת גם עריכה שלא עברה דרך saveData
@@ -1995,7 +2015,8 @@ async function reloadFromSupabase(silent){
 
     if(leadsData){
       window.__lastAppliedSync = mySeq;
-      const fresh = leadsData.map(r => ({...r.data, id:r.id}));
+      if(_seq !== window.__reloadSeq) return;   // תשובה ישנה — בקשה חדשה יותר כבר יצאה
+  const fresh = _mergeServerRows(leadsData);
       _leadTs={}; leadsData.forEach(r=>{ _leadTs[r.id]=r.updated_at; });
       // השוואה מלאה של כל התוכן — מזהה כל שינוי ממכשיר אחר
       const norm = arr => JSON.stringify([...arr].sort((a,b)=>a.id-b.id));
@@ -2008,11 +2029,11 @@ async function reloadFromSupabase(silent){
       }
       _lastSync = Date.now();
     }
-    setSyncStatus('ok','☁️ מסונכרן');
+    _reflectPendingStatus();
   }catch(err){
     console.error('Reload error:',err);
     // הצג כשל רק אם המשתמש עדיין מחובר והבקשה לא התיישנה בעקבות התנתקות
-    if(window.__isAuthed && window.__syncGen === genAtStart){
+    if(window.__isAuthed && window.__syncGen === genAtStart && _seq === window.__reloadSeq){
       const last = _lastSync ? new Date(_lastSync).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : null;
       setSyncStatus('err', last ? ('⚠️ סנכרון נכשל — עודכן לאחרונה ' + last) : '⚠️ סנכרון נכשל');
     }
@@ -2022,7 +2043,7 @@ async function reloadFromSupabase(silent){
 // שקף בממשק את מצב השמירה האמיתי: ממתין / נכשל / מסונכרן.
 // לעולם לא מציג "מסונכרן" כשיש שינוי שטרם אושר בשרת.
 function _reflectPendingStatus(){
-  const pending = (saveData._ps && saveData._ps.size > 0) ? saveData._ps.size : 0;
+  const pending = new Set([...(saveData._ps||[]), ...Object.keys(_outbox).map(Number), ..._inflight]).size;
   if(pending > 0 || _isDirty){
     setSyncStatus('syncing', pending > 0
       ? ('⏳ ' + pending + ' שינויים ממתינים לשמירה')
@@ -2083,46 +2104,39 @@ function dedupLeads(){
 
 function recoverPendingSaves(){
   try{
-    const raw = JSON.parse(localStorage.getItem('pendingSaveQueue')||'null');
-    if(!raw) return;
-    // תמיכה בשני פורמטים: מערך ישן, או {ids,ts} חדש
-    const pending = Array.isArray(raw) ? raw : (raw.ids||[]);
-    const qts = Array.isArray(raw) ? Date.now() : (raw.ts||0);
-    if(!pending.length){ localStorage.removeItem('pendingSaveQueue'); return; }
-    // תור ישן מ-48 שעות — אל תמחק בשקט. שאל את המשתמש (אסור לאבד שינוי ללא בחירה מפורשת).
-    const isOld = Date.now()-qts > 48*60*60*1000;
-    if(isOld){
-      const ageHours = Math.round((Date.now()-qts)/3600000);
-      const choice = confirm(`נמצאו ${pending.length} שינויים שלא הסתנכרנו מלפני כ-${ageHours} שעות.\n\nאישור = לשחזר ולנסות לסנכרן אותם עכשיו\nביטול = להתעלם מהם (הם יישארו שמורים מקומית ולא יימחקו)`);
-      if(!choice){
-        // המשתמש בחר לא לשחזר עכשיו — אבל לא מוחקים! נשאר לשחזור עתידי
-        console.log('User deferred old pending queue — kept for later');
-        return;
-      }
+    // המרה חד-פעמית מהפורמט הישן (pendingSaveQueue + גיבוי כללי) ל-outbox
+    if(!outboxSize()){
+      const raw=JSON.parse(localStorage.getItem('pendingSaveQueue')||'null');
+      const ids=raw?(Array.isArray(raw)?raw:(raw.ids||[])):[];
+      const local=JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
+      ids.forEach(id=>{ const l=(local.leads||[]).find(x=>x.id===id);
+        if(l) _outbox[id]={payload:l, base:null, rev:_newRev(), ts:(raw&&raw.ts)||Date.now()}; });
+      if(ids.length) _persistOutbox();
     }
-    const local = JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}');
-    if(!local.leads) { localStorage.removeItem('pendingSaveQueue'); return; }
-    let recovered = 0;
-    pending.forEach(id=>{
-      const localLead = local.leads.find(l=>l.id===id);
-      if(localLead){
-        const idx = leads.findIndex(l=>l.id===id);
-        if(idx>=0) leads[idx] = localLead; else leads.push(localLead);
-        recovered++;
-      }
-    });
-    if(recovered>0){
-      console.log('Recovered '+recovered+' unsaved lead(s) from previous session');
+    const ids=Object.keys(_outbox).map(Number).filter(id=>!_isTomb(id));
+    if(!ids.length) return;
+    const oldest=Math.min(...ids.map(id=>_outbox[id].ts||Date.now()));
+    if(Date.now()-oldest > 48*60*60*1000){
+      const ageHours=Math.round((Date.now()-oldest)/3600000);
+      const choice=confirm(`נמצאו ${ids.length} שינויים שלא הסתנכרנו מלפני כ-${ageHours} שעות.\n\nאישור = לשחזר ולנסות לסנכרן אותם עכשיו\nביטול = לא עכשיו (הם יישארו שמורים במכשיר, ולא יידרסו ע"י עריכות אחרות)`);
+      if(!choice){ console.log('User deferred old outbox — kept intact'); return; }
+    }
+    let recovered=0;
+    ids.forEach(id=>{ const p=Object.assign({}, _outbox[id].payload, {id});
+      const i=leads.findIndex(l=>l.id===id); if(i>=0) leads[i]=p; else leads.push(p); recovered++; });
+    if(recovered){
+      const _ps=saveData._ps||(saveData._ps=new Set()); ids.forEach(id=>_ps.add(id));
       toast('🔄 שוחזרו '+recovered+' שינויים שלא הסתנכרנו');
-      saveData(pending);
+      try{ localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId})); }catch(e){}
       refresh();
-    } else {
-      localStorage.removeItem('pendingSaveQueue');
+      _reflectPendingStatus();
+      clearTimeout(saveTimer); saveTimer=setTimeout(()=>{ flushPendingSaves().catch(()=>{}); },800);
     }
   }catch(e){ console.error('recover error',e); }
 }
 
 async function loadFromSupabase(){
+  const _gen=window.__syncGen;   // D09: תשובה שחוזרת אחרי יציאה לא מוחלת
   setSyncStatus('syncing','⏳ טוען נתונים...');
   try{
     const [{data:leadsData, error:e1}, {data:metaData, error:e2}] = await Promise.all([
@@ -2132,7 +2146,8 @@ async function loadFromSupabase(){
     if(e1) throw e1;
     if(e2) throw e2; // שגיאה ב-app_meta — טיפול זהה (fail-closed בהמשך ה-catch)
     if(leadsData && leadsData.length > 0){
-      leads = leadsData.map(r => ({...r.data, id:r.id}));
+      if(window.__syncGen!==_gen) return false;
+  leads = _mergeServerRows(leadsData);   // בלי לידים שנמחקו, ושינויים שלא אושרו נשארים מקומיים
       _leadTs={}; leadsData.forEach(r=>{ _leadTs[r.id]=r.updated_at; });
       const metaNextId = metaData?.find(m=>m.key==='nextId');
       nextId = metaNextId ? parseInt(metaNextId.value) : leads.reduce((m,l)=>Math.max(m,l.id),0)+1;
@@ -2151,9 +2166,11 @@ async function loadFromSupabase(){
     dedupLeads();
     refresh();
     await loadContacts();
+  if(window.__syncGen!==_gen) return false;
+  await loadCallerRules();
     showDailyDigest();
     if(window.checkSharedContent)checkSharedContent();
-    setSyncStatus('ok','☁️ מסונכרן');
+    _reflectPendingStatus();   // D07: 'מסונכרן' רק כשאין שינוי שלא אושר
     return true; // טעינה הצליחה
   }catch(err){
     console.error('Load error');
@@ -2281,18 +2298,96 @@ function escHtml(s){
 
 let _leadTs = {};
 
+
+// ═══════════════════════════════════════════════════════════════════════════
+// תור שמירה עמיד (outbox) — ביקורת df2ce6f: F02/D04/D06/F10/F11, D01/D02
+//  • כל שינוי שלא אושר נשמר בנפרד: התוכן (payload) + גרסת הבסיס (base = updated_at שעליו התבסס).
+//  • נמחק מהתור רק אחרי אישור שרת, ורק אם לא נוצר בינתיים שינוי חדש יותר לאותו ליד (rev).
+//  • השרת (upsert_leads_checked) משווה base וכותב באותה טרנזקציה — אין "בדוק ואז כתוב".
+//  • מחיקה מסמנת tombstone: קריאה ישנה או כתיבה מאוחרת לא מחזירות ליד שנמחק.
+// ═══════════════════════════════════════════════════════════════════════════
+const OUTBOX_KEY='leadOutbox_v1', TOMB_KEY='leadTombstones_v1';
+let _outbox=(()=>{ try{ const o=JSON.parse(localStorage.getItem(OUTBOX_KEY)||'{}'); return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } })();
+let _tomb  =(()=>{ try{ const o=JSON.parse(localStorage.getItem(TOMB_KEY)||'{}');   return (o&&typeof o==='object')?o:{}; }catch(e){ return {}; } })();
+let _outSeq=0, _inflight=new Set(), _rpcAtomic=true;
+function _newRev(){ return Date.now()*1000 + ((++_outSeq)%1000); }
+function _persistOutbox(){
+  try{
+    localStorage.setItem(OUTBOX_KEY, JSON.stringify(_outbox));
+    // תאימות לאחור: pendingSaveQueue = כל מה שלא אושר (כולל מה שבדרך לשרת)
+    localStorage.setItem('pendingSaveQueue', JSON.stringify({ids:Object.keys(_outbox).map(Number), ts:Date.now()}));
+  }catch(e){}
+}
+function _outboxPut(id){
+  const l=leads.find(x=>x.id===id); if(!l || _isTomb(id)) return;
+  const prev=_outbox[id];
+  _outbox[id]={payload:JSON.parse(JSON.stringify(l)), base: prev ? prev.base : (_leadTs[id]||null), rev:_newRev(), ts:Date.now()};
+}
+function _persistTomb(){ try{ localStorage.setItem(TOMB_KEY, JSON.stringify(_tomb)); }catch(e){} }
+function _tombAdd(id){ _tomb[id]={at:Date.now(), done:false}; _persistTomb(); }
+function _tombDone(id){ if(_tomb[id]){ _tomb[id]={at:Date.now(), done:true}; _persistTomb(); } }
+function _tombDrop(id){ if(_tomb[id]){ delete _tomb[id]; _persistTomb(); } }
+function _isTomb(id){
+  const t=_tomb[id]; if(!t) return false;
+  if(t.done && Date.now()-t.at > 15*60*1000){ delete _tomb[id]; _persistTomb(); return false; }   // השרת כבר אישר מזמן
+  return true;
+}
+function outboxSize(){ return Object.keys(_outbox).length; }
+// נתוני שרת → מסננים מחוקים, ולידים עם שינוי שלא אושר נשארים בגרסה המקומית (עד אישור / הכרעה בהתנגשות)
+function _mergeServerRows(rows){
+  const out=[];
+  rows.forEach(r=>{ if(_isTomb(r.id)) return;
+    const ob=_outbox[r.id];
+    out.push(ob ? Object.assign({}, ob.payload, {id:r.id}) : Object.assign({}, r.data, {id:r.id})); });
+  // לידים חדשים שעוד לא הגיעו לשרת
+  Object.keys(_outbox).forEach(k=>{ const id=Number(k); if(!out.some(l=>l.id===id) && _outbox[k].base==null && !_isTomb(id)) out.push(Object.assign({}, _outbox[k].payload, {id})); });
+  return out;
+}
+// הכרעה בהתנגשות: שמירת הגרסה המקומית (force) או קבלת גרסת השרת — שני הצדדים נשמרים בגיבוי
+async function _resolveConflicts(list){
+  const names=list.slice(0,5).map(r=>{ const l=leads.find(x=>x.id===r.o_id); return (l?l.address:'#'+r.o_id)+(r.o_status==='deleted'?' (נמחק במכשיר אחר)':''); }).join(', ');
+  const keepMine=confirm(`⚠️ ${list.length} לידים שונו או נמחקו ממכשיר אחר בזמן שעבדת כאן:\n${names}\n\nאישור = לשמור את הגרסה שלך (תחליף את זו שבשרת)\nביטול = לקבל את הגרסה מהשרת (הגרסה שלך תישמר בגיבוי במכשיר)`);
+  let backup=[]; try{ backup=JSON.parse(localStorage.getItem('leadConflicts_v1')||'[]')||[]; }catch(e){}
+  list.forEach(r=>{ const ob=_outbox[r.o_id]; if(ob) backup.push({id:r.o_id, at:new Date().toISOString(), local:ob.payload, server:r.o_server_data||null, status:r.o_status, kept:keepMine?'local':'server'}); });
+  try{ localStorage.setItem('leadConflicts_v1', JSON.stringify(backup.slice(-50))); }catch(e){}
+  if(keepMine){
+    const rows=list.filter(r=>_outbox[r.o_id]).map(r=>({id:r.o_id, data:_outbox[r.o_id].payload, base:null, force:true}));
+    if(!rows.length) return;
+    const sent={}; list.forEach(r=>{ if(_outbox[r.o_id]) sent[r.o_id]=_outbox[r.o_id].rev; });
+    const {data, error}=await sb.rpc('upsert_leads_checked',{p_rows:rows});
+    if(error) throw error;
+    (data||[]).forEach(r=>_ackRow(r, sent));
+  } else {
+    list.forEach(r=>{
+      delete _outbox[r.o_id];
+      const i=leads.findIndex(l=>l.id===r.o_id);
+      if(r.o_status==='deleted'){ if(i>=0) leads.splice(i,1); delete _leadTs[r.o_id]; }
+      else if(r.o_server_data){ const v=Object.assign({}, r.o_server_data, {id:r.o_id}); if(i>=0) leads[i]=v; else leads.push(v); _leadTs[r.o_id]=r.o_updated_at; }
+    });
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({leads,nextId})); }catch(e){}
+    refresh();
+  }
+  _persistOutbox();
+}
+function _ackRow(r, sentRev){
+  if(r.o_status!=='ok') return false;
+  _leadTs[r.o_id]=r.o_updated_at;
+  const ob=_outbox[r.o_id];
+  if(ob){
+    if(ob.rev===sentRev[r.o_id]) delete _outbox[r.o_id];     // זה בדיוק מה שנשלח — אושר
+    else ob.base=r.o_updated_at;                              // נוצר שינוי חדש בזמן השליחה — הוא מתבסס על הגרסה שאושרה
+  }
+  return true;
+}
+
 function saveData(leadId=null){
   bumpLocalRev();   // סמן שנוצר שינוי מקומי — מבטל תשובת סנכרון שבדרך
   _isDirty = true;
   try{localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId}));}catch(e){}
   const _ps = saveData._ps || (saveData._ps = new Set());
-  if(leadId!==null && leadId!==undefined){
-    if(Array.isArray(leadId)) leadId.forEach(id=>_ps.add(id));
-    else _ps.add(leadId);
-  } else {
-    leads.forEach(l=>_ps.add(l.id));
-  }
-  try{localStorage.setItem('pendingSaveQueue',JSON.stringify({ids:[..._ps],ts:Date.now()}));}catch(e){}
+  const ids = (leadId===null||leadId===undefined) ? leads.map(l=>l.id) : (Array.isArray(leadId)?leadId:[leadId]);
+  ids.forEach(id=>{ if(_isTomb(id)) return; _outboxPut(id); _ps.add(id); });
+  _persistOutbox();
   clearTimeout(saveTimer);
   saveTimer=setTimeout(()=>{ flushPendingSaves().catch(e=>console.warn('debounced flush error')); },800);
 }
@@ -2337,61 +2432,52 @@ async function _flushOnce(_ps){
   setSyncStatus('syncing','⏳ שומר...');
   let idsToSave = [];
   try{
-    idsToSave = [..._ps];
+    idsToSave = [..._ps].filter(id=>!_isTomb(id));
     _ps.clear(); // פריטים חדשים שייכנסו מעכשיו יטופלו בסיבוב הבא של הלולאה
-    const seen = new Set();
-    const toSave = leads.filter(l=>{
-      if(!idsToSave.includes(l.id) || seen.has(l.id)) return false;
-      seen.add(l.id); return true;
-    });
-    if(toSave.length===0){ try{localStorage.setItem('pendingSaveQueue',JSON.stringify({ids:[..._ps],ts:Date.now()}));}catch(e){} setSyncStatus('ok','☁️ נשמר בענן ✓'); return true; }
-
-    // ── בדיקת התנגשות בין מכשירים ──
-    try{
-      const {data:curTs} = await sb.from('leads').select('id,updated_at').in('id', toSave.map(l=>l.id));
-      if(curTs && curTs.length){
-        const conflicts = curTs.filter(r=>_leadTs[r.id] && r.updated_at && new Date(r.updated_at) > new Date(_leadTs[r.id]));
-        if(conflicts.length){
-          const cnames = conflicts.slice(0,5).map(r=>{const l=leads.find(x=>x.id===r.id);return l?l.address:('#'+r.id);}).join(', ');
-          const overwrite = confirm(`⚠️ ${conflicts.length} לידים עודכנו ממכשיר אחר בזמן שעבדת כאן:\n${cnames}\n\nאישור = לשמור את הגרסה שלך (תדרוס את של המכשיר האחר)\nביטול = לוותר על השינוי המקומי ולטעון את הגרסה מהענן`);
-          if(!overwrite){
-            const cset=new Set(conflicts.map(r=>r.id));
-            for(let ci=toSave.length-1;ci>=0;ci--){ if(cset.has(toSave[ci].id)) toSave.splice(ci,1); }
-            idsToSave = idsToSave.filter(id=>!cset.has(id));
-            setTimeout(()=>reloadFromSupabase(true), 400);
-            if(toSave.length===0){ setSyncStatus('ok','☁️ מסונכרן'); return true; }
-          }
+    idsToSave.forEach(id=>{ if(!_outbox[id]) _outboxPut(id); });
+    idsToSave = idsToSave.filter(id=>_outbox[id]);
+    if(!idsToSave.length){ _persistOutbox(); _reflectPendingStatus(); return true; }
+    idsToSave.forEach(id=>_inflight.add(id));
+    const sent={}; idsToSave.forEach(id=>{ sent[id]=_outbox[id].rev; });
+    const rows = idsToSave.map(id=>({id, data:_outbox[id].payload, base:_outbox[id].base||null}));
+    const conflicts=[];
+    for(let i=0;i<rows.length;i+=50){
+      const chunk=rows.slice(i,i+50);
+      if(_rpcAtomic){
+        let res=await sb.rpc('upsert_leads_checked',{p_rows:chunk});
+        if(res.error && /upsert_leads_checked|PGRST202|404/i.test((res.error.message||'')+(res.error.code||''))){
+          _rpcAtomic=false;   // הפונקציה עוד לא קיימת בשרת — מעבר לנתיב הישן (ללא השוואה אטומית)
+        } else {
+          if(res.error){ try{ await sb.auth.refreshSession(); }catch(e){} res=await sb.rpc('upsert_leads_checked',{p_rows:chunk}); }
+          if(res.error) throw res.error;
+          (res.data||[]).forEach(r=>{ if(!_ackRow(r,sent)) conflicts.push(r); });
+          continue;
         }
       }
-    }catch(e){ console.warn('Conflict check skipped'); }
-
-    const rows = toSave.map(l=>({id:l.id, data:l, updated_at:new Date().toISOString()}));
-    for(let i=0;i<rows.length;i+=50){
-      let {error}=await sb.from('leads').upsert(rows.slice(i,i+50),{onConflict:'id'});
-      if(error){
-        console.warn('Save failed, refreshing session...');
-        try{ await sb.auth.refreshSession(); }catch(e){}
-        const retry = await sb.from('leads').upsert(rows.slice(i,i+50),{onConflict:'id'});
-        if(retry.error){ idsToSave.forEach(id=>_ps.add(id)); throw retry.error; }
-      }
+      // נתיב ישן (גיבוי)
+      const legacy=chunk.map(r=>({id:r.id, data:r.data, updated_at:new Date().toISOString()}));
+      let {error}=await sb.from('leads').upsert(legacy,{onConflict:'id'});
+      if(error){ try{ await sb.auth.refreshSession(); }catch(e){} ({error}=await sb.from('leads').upsert(legacy,{onConflict:'id'})); }
+      if(error) throw error;
+      legacy.forEach(r=>_ackRow({o_id:r.id,o_status:'ok',o_updated_at:r.updated_at},sent));
     }
+    _persistOutbox();
+    if(conflicts.length) await _resolveConflicts(conflicts);
     // הערה: אין לכתוב nextId מהלקוח — reserve_lead_ids (RPC אטומי) הוא המקור הבלעדי.
-    // כתיבה מהלקוח עלולה לדרוס ערך שרת עדכני ולגרום להתנגשות מזהים בין מכשירים.
     _lastSync = Date.now();
-    try{localStorage.setItem('pendingSaveQueue',JSON.stringify({ids:[..._ps],ts:Date.now()}));}catch(e){}
-    rows.forEach(r=>{ _leadTs[r.id]=r.updated_at; });
     hideSaveError();
-    setSyncStatus('ok','☁️ נשמר בענן ✓');
+    _reflectPendingStatus();
     return true;
   }catch(err){
-    idsToSave.forEach(id=>_ps.add(id)); // השאר בתור — לא לאבד שינוי
+    idsToSave.forEach(id=>{ if(_outbox[id]) _ps.add(id); }); // השאר בתור — לא לאבד שינוי
+    _persistOutbox();
     _isDirty = true;
     const msg=(err&&err.message||'').toLowerCase();
     if(msg.includes('jwt')||msg.includes('auth')||msg.includes('token')||msg.includes('expired')||(err&&err.code==='PGRST301')){
       setSyncStatus('err','⚠️ פג תוקף החיבור — מתחבר מחדש...');
       try{
         const {data}=await sb.auth.refreshSession();
-        if(data&&data.session){ setSyncStatus('ok','☁️ מחובר מחדש'); }
+        if(data&&data.session){ setSyncStatus('syncing','⏳ מחובר מחדש — ממתין לשמירה'); }
         else { setSyncStatus('err','🔒 יש להתחבר מחדש'); showSaveError('פג תוקף החיבור למערכת. רענן את הדף והתחבר מחדש — השינויים ישוחזרו אוטומטית.'); }
       }catch(e){ setSyncStatus('err','🔒 יש להתחבר מחדש'); showSaveError('פג תוקף החיבור למערכת. רענן את הדף והתחבר מחדש — השינויים ישוחזרו אוטומטית.'); }
     } else {
@@ -2400,6 +2486,8 @@ async function _flushOnce(_ps){
       setTimeout(()=>{ if(_ps.size>0) flushPendingSaves().catch(()=>{}); }, 5000);
     }
     return false; // כשל — לא לנקות תור
+  }finally{
+    idsToSave.forEach(id=>_inflight.delete(id));
   }
 }
 
@@ -2461,6 +2549,7 @@ window.addEventListener('beforeunload', (e)=>{
 function winDateOf(l){
   const WON='התקבלה הודעת זכייה 🏆';
   if(l.winDate && isValidISODate(l.winDate)) return new Date(l.winDate);   // תאריך זכייה שתוקן ידנית
+  if(l.winDateUnknown) return null;                                           // סומן במפורש: תאריך הזכייה לא ידוע
   if(l.history && l.history.length){
     // האירוע האחרון שבו to===זכייה
     for(let i=l.history.length-1;i>=0;i--){
@@ -2630,7 +2719,7 @@ function updateStatusLabel(){
     ? leads.length 
     : leads.filter(l=>selectedStatuses.includes(l.status)).length;
   // בזמן סינון ממוקד (סיבה / איכות נתונים / תקועים) — הצג את מה שמוצג בפועל
-  if(window._reasonFilter || window._qualityFilter || window._stagnantFilter){
+  if(window._reasonFilter || window._qualityFilter || window._stagnantFilter || window._cityFilter){
     try{ count = filteredLeads().length; }catch(e){}
   }
   const countTag = `<span style="background:var(--blue);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800;margin-inline-end:6px">${count}</span>&nbsp;`;
@@ -2692,7 +2781,9 @@ function _leadMatches(l,w){
 
 function filteredLeads(){
   const raw=document.getElementById('searchInput').value.trim().toLowerCase();
-  const qWords=raw.split(/\s+/).filter(Boolean).map(_searchNorm).filter(Boolean);
+  const _phoneQ=raw.replace(/[\s\-()+.]/g,'');
+  const qWords = /^\d{7,}$/.test(_phoneQ) ? [_phoneQ]
+               : raw.split(/\s+/).filter(Boolean).map(_searchNorm).filter(Boolean);
   const boxes = document.querySelectorAll('#statusDropdown .st-opt input[type=checkbox]');
   const checked = [...boxes].filter(b=>b.checked);
   const allChecked = checked.length === boxes.length;
@@ -2718,6 +2809,8 @@ function filteredLeads(){
     if(qf==='city'   && (l.city||'').trim()) return false;
     if(qf==='name'   && (l.name||'').trim()) return false;
     // סינון לפי סיבת אי-רלוונטיות (מופעל מכרטיס הסיבות בניתוח)
+    const cf=window._cityFilter;
+    if(cf){ if(normCity(l.city)!==cf.city) return false; if(cf.from && !((l.date||'')>=cf.from)) return false; }
     const rf=window._reasonFilter;
     if(rf){
       if(l.status!==IRRELEVANT_STATUS) return false;
@@ -2866,6 +2959,13 @@ const STATUS_EXTRA = {
 function _statusNeedsExtra(status){ return !!STATUS_EXTRA[status]; }
 
 // החלה בפועל של שינוי סטטוס — כולל היסטוריה, תאריך שינוי וניקוי שדות לא רלוונטיים
+
+// כניסה לסטטוס זכייה היא אירוע זכייה חדש: תיקון ידני של תאריך זכייה קודמת מתאפס.
+// ההיסטוריה (כולל הזכייה הקודמת) נשמרת כמו שהיא.
+function _onStatusChanged(l, prev, next){
+  if(next===WON_STATUS && prev!==WON_STATUS){ if(l.winDate) l.winDate=''; if(l.winDateUnknown) l.winDateUnknown=false; }
+}
+
 function _applyStatusChange(id, newStatus, extra){
   const l = leads.find(x=>x.id===id);
   if(!l || l.status===newStatus) return false;
@@ -2882,12 +2982,13 @@ function _applyStatusChange(id, newStatus, extra){
   l.history.push({ts, iso:now.toISOString(), changes});
 
   l.statusChangedAt = todayIL();
+  _onStatusChanged(l, l.status, newStatus);
   l.status = newStatus;
   (extra||[]).forEach(e=>{ l[e.key]=e.value; });
 
   // ניקוי שדות שכבר אינם רלוונטיים לסטטוס החדש (שומר על הסטטיסטיקה נקייה)
   if(newStatus!==WON_STATUS)        l.winCompany='';
-  if(newStatus!==IRRELEVANT_STATUS){ l.irrelReason=''; l.irrelReasonNote=''; l.competitor=''; }
+  if(newStatus!==IRRELEVANT_STATUS){ l.irrelReason=''; l.irrelReasonNote=''; }   // מתחרה נשמר — רלוונטי גם בשלבים פעילים ובזכייה
   if(l.irrelReason!==IRREL_OTHER) l.irrelReasonNote='';
   // אישור בעלים תקף רק כשיש תקציב והליד אינו לא-רלוונטי
   if(typeof needsOwnerApproval==='function' && !needsOwnerApproval(l) && l.ownerApproved){
@@ -3152,64 +3253,44 @@ function renderTable(){
 
 async function deleteLead(id){
   if(!confirm("למחוק ליד זה?"))return;
-  const backup = leads.find(x=>x.id===id);
-  if(!backup) return;
-  const _ps = saveData._ps || (saveData._ps = new Set());   // ודא שהתור קיים
-  const wasQueued = _ps.has(id);
-
-  // ── F03: המחיקה עוברת דרך תור הכתיבות — כתיבה מושהית לא תחייה את הליד ──
+  if(!leads.some(x=>x.id===id)) return;
+  const _ps = saveData._ps || (saveData._ps = new Set());
+  // המחיקה עוברת דרך תור הכתיבות — כתיבה מושהית לא תחייה את הליד
   await _withWriteLock(async()=>{
-    // כתיבות שכבר ממתינות חייבות להסתיים לפני המחיקה.
-    // אם הסנכרון נכשל — אל תמחק כלל, אחרת יאבדו שינויים שלא הגיעו לשרת.
+    // כתיבות שממתינות חייבות להסתיים לפני המחיקה; אם הסנכרון נכשל — לא מוחקים כלל
     if(sb && _ps.size>0){
       let flushed=false;
       try{ flushed = await _flushAllUnlocked(); }catch(e){ flushed=false; }
       if(!flushed){
-        if(typeof _reflectPendingStatus==='function') _reflectPendingStatus();
+        _reflectPendingStatus();
         showSaveError('לא ניתן למחוק כרגע: יש שינויים שטרם נשמרו בענן והסנכרון נכשל. בדוק את החיבור ונסה שוב — שום דבר לא נמחק.');
         return;
       }
     }
-    // הסרה מקומית מלאה
+    const backup = leads.find(x=>x.id===id); if(!backup) return;
+    const obPrev = _outbox[id] || null;
+    // סימון מחיקה לפני הבקשה: קריאה שכבר בדרך / כתיבה מאוחרת לא יחזירו את הליד
+    _tombAdd(id); bumpLocalRev();
+    delete _outbox[id]; _ps.delete(id); _persistOutbox();
     leads=leads.filter(x=>x.id!==id);
-    if(saveData._ps) saveData._ps.delete(id);
-    let queueBefore=null;
-    try{
-      queueBefore = localStorage.getItem('pendingSaveQueue');
-      localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId}));
-      const q=JSON.parse(queueBefore||'{}');
-      const ids=(Array.isArray(q)?q:(q.ids||[])).filter(x=>x!==id);
-      localStorage.setItem('pendingSaveQueue',JSON.stringify({ids,ts:Date.now()}));
-    }catch(e){}
+    try{ localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId})); }catch(e){}
     refresh();
-
-    if(!sb){ toast("🗑 הליד נמחק"); return; }
-
+    if(!sb){ _tombDone(id); toast("🗑 הליד נמחק"); return; }
     let delErr=null;
-    try{
-      const { error } = await sb.from('leads').delete().eq('id',id);
-      delErr = error;
-    }catch(e){ delErr = e; }
-
+    try{ const { error } = await sb.from('leads').delete().eq('id',id); delErr = error; }catch(e){ delErr = e; }
     if(delErr){
       console.error('Delete error:',delErr);
-      // ── F04: שחזור מלא — זיכרון, גיבוי מקומי ותור השמירה ──
+      // שחזור ממוזג: מחזירים רק את הליד הזה ואת השינוי שלו שלא אושר — בלי לדרוס עריכות אחרות שנעשו בינתיים
+      _tombDrop(id);
       if(!leads.some(x=>x.id===id)){ leads.push(backup); leads.sort((a,b)=>b.id-a.id); }
-      if(wasQueued && saveData._ps) saveData._ps.add(id);   // השינוי שטרם נשמר חוזר לתור
-      try{
-        localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId}));
-        if(wasQueued && queueBefore!==null){
-          const q=JSON.parse(queueBefore||'{}');
-          const ids=(Array.isArray(q)?q:(q.ids||[]));
-          if(!ids.includes(id)) ids.push(id);
-          localStorage.setItem('pendingSaveQueue',JSON.stringify({ids,ts:Date.now()}));
-        }
-      }catch(e){}
-      _isDirty = !!(saveData._ps && saveData._ps.size>0);
-      refresh();
-      if(typeof _reflectPendingStatus==='function') _reflectPendingStatus();
+      if(obPrev){ _outbox[id]=obPrev; _ps.add(id); }
+      _persistOutbox();
+      try{ localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId})); }catch(e){}
+      _isDirty = outboxSize()>0;
+      refresh(); _reflectPendingStatus();
       showSaveError('מחיקת הליד נכשלה — הליד והשינויים שטרם נשמרו הוחזרו. שגיאה: '+(delErr.message||'בעיית תקשורת'));
     } else {
+      _tombDone(id);
       toast("🗑 הליד נמחק");
       logLeadAudit(id,'deleted',backup,'deleteLead');
     }
@@ -3496,12 +3577,24 @@ function renderPeriodBars(){
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── שיעור המרה אמיתי: זכיות מתוך כל מה שנסגר (זכייה + לא רלוונטי) ──
+
+// ── הגדרה אחידה לכל המדדים: לידים חדשים לפי תאריך קבלה; זכיות לפי תאריך הזכייה (winDateOf);
+//    סגירות כלא רלוונטי לפי תאריך הסגירה (closedDateOf). "הכל" כולל גם אירועים בלי תאריך ידוע.
+function _dayKeyOf(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _eventInPeriod(d){
+  const from=(typeof periodStart==='function')?periodStart():null;
+  if(!from) return true;
+  if(!d || isNaN(d)) return false;
+  return _dayKeyOf(d)>=from;
+}
+function winsInPeriod(){ return leads.filter(l=>l.status===WON_STATUS && _eventInPeriod(winDateOf(l))); }
+function lostInPeriod(){ return leads.filter(l=>l.status===IRRELEVANT_STATUS && _eventInPeriod(closedDateOf(l,IRRELEVANT_STATUS))); }
+
 function renderConversionCard(){
   const el=document.getElementById('dashConversion');
   if(!el) return;
-  const scope = periodLeads('status');                 // לפי מועד הסגירה
-  const wins  = scope.filter(l=>l.status===WON_STATUS).length;
-  const lost  = scope.filter(l=>l.status===IRRELEVANT_STATUS).length;
+  const wins  = winsInPeriod().length;                 // לפי תאריך הזכייה
+  const lost  = lostInPeriod().length;                 // לפי תאריך הסגירה
   const closed= wins+lost;
   const openN = periodLeads('date').filter(l=>!CLOSED.includes(l.status)).length;
 
@@ -3597,7 +3690,7 @@ function renderDataQualityCard(){
 
 // מציג את הלידים החסרים ברשימה, דרך החיפוש הרגיל
 function showIncomplete(kind){
-  window._reasonFilter=null;
+  window._reasonFilter=null; window._cityFilter=null;
   window._qualityFilter = kind;
   const tab=document.getElementById('tab-leads');
   if(window.showTab && tab) showTab('leads', tab);
@@ -3626,7 +3719,7 @@ function showQualityBanner(kind, n){
 
 // לחיצה על מספר בכרטיס הסיבות → רשימת הלידים עם אותה סיבה (ואותה תקופה)
 function showReasonLeads(reason, note){
-  window._qualityFilter=null; window._stagnantFilter=false;
+  window._qualityFilter=null; window._stagnantFilter=false; window._cityFilter=null;
   window._reasonFilter={reason:reason||'', note:(note===undefined?null:note), from:(typeof periodStart==='function'?periodStart():null)};
   const tab=document.getElementById('tab-leads');
   if(window.showTab && tab) showTab('leads', tab); else if(tab) tab.click();
@@ -3652,7 +3745,7 @@ function showReasonLeads(reason, note){
 }
 
 function clearQualityFilter(){
-  window._reasonFilter=null;
+  window._reasonFilter=null; window._cityFilter=null;
   window._qualityFilter=null;
   document.getElementById('_qualityBanner')?.remove();
   currentPage=1;
@@ -3660,14 +3753,40 @@ function clearQualityFilter(){
 }
 
 // מסתיר כרטיס שאין בו נתונים, במקום להציג "אין נתונים" שתופס מקום
+
+// ── שורת הגדרה מתחת לכותרת של כל כרטיס מדד (ביקורת df2ce6f, F16/A04: "הגדרה ברורה ליד המדד") ──
+const METRIC_DEFS={
+  dashConversion:'זכיות לפי תאריך הזכייה · סגירות לפי תאריך הסגירה',
+  dashWinsYear:'לפי תאריך הזכייה (גם בלידים שהתקבלו לפני התקופה)',
+  dashWinsCompany:'לפי תאריך הזכייה',
+  dashCaller:'לידים שהתקבלו בתקופה, ומה קרה איתם',
+  dashStatus:'מצב נוכחי של הלידים הפעילים',
+  dashActivity:'גיל הלידים הפעילים מיום הקבלה',
+  anForecast:'לפי לידים שהתקבלו בתקופה (קוהורט)',
+  anKnesConversion:'לידים שהתקבלו בתקופה והגיעו לשלב כנס',
+  anIrrelReasons:'לידים שהתקבלו בתקופה ונסגרו כלא רלוונטיים',
+  anCityConv:'לידים שהתקבלו בתקופה; המרה בתוך אותה קבוצה',
+  anTrend:'נכנסו — לפי תאריך קבלה · זכיות/נסגרו — לפי תאריך האירוע',
+  anWinsMonthly:'לפי תאריך הזכייה'
+};
+function labelMetricCards(){
+  Object.entries(METRIC_DEFS).forEach(([id,txt])=>{
+    const el=document.getElementById(id); if(!el) return;
+    const h=el.querySelector('h3'); if(!h || el.querySelector('.metric-def')) return;
+    const d=document.createElement('div'); d.className='metric-def'; d.textContent=txt;
+    h.insertAdjacentElement('afterend', d);
+  });
+}
+
 function autoHideEmptyCards(){
+  try{ labelMetricCards(); }catch(e){}
   // כרטיסים שעלולים להיות ריקים — מוסתרים במקום להציג "אין נתונים" שתופס מקום
   const EMPTY_RX=/אין נתונים|אין עדיין|אין מספיק|עדיין אין|יצטברו|אין זכיות|אין נתוני|לא נמצאו נתונים/;
   const CANDIDATES=['anForecast','dashArchByArch','dashArchByCity','dashWinsYear','dashWinsCompany','dashActivity',
     'dashQuality','dashDelta','anKnesConversion','anCompetitors','anVelocity','anWinAge',
     'anForecastWins','anIrrelReasons','anCityConv','anTrend','anWinsMonthly','anPeriod','anPeriods'];
   const isEmpty=(id,el)=>{
-    const t=(el.textContent||'').replace(/\s+/g,' ').trim();
+    const _md=el.querySelector('.metric-def'); const t=((el.textContent||'').replace(_md?_md.textContent:'\u0000','')).replace(/\s+/g,' ').trim();   // שורת ההגדרה אינה תוכן
     const h=el.querySelector('h3');
     const body=h ? t.replace((h.textContent||'').replace(/\s+/g,' ').trim(),'').trim() : t;
     if(!body) return true;
@@ -3858,16 +3977,16 @@ function openWinDateTool(){
   m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:650;display:flex;align-items:center;justify-content:center;padding:14px';
   m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
   const td=todayIL();
+  const cur=l=>{ const d=winDateOf(l); return d&&!isNaN(d)? `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` : ''; };
   m.innerHTML=`<div class="form-card" style="width:min(560px,96vw);max-height:88vh;overflow-y:auto" role="dialog" aria-modal="true">
     <div class="form-title">📅 תאריכי זכייה</div>
     <div style="font-size:12px;color:var(--text2);margin:-4px 0 14px;line-height:1.55">
-      הזכיות האלה נרשמו ללא תאריך זכייה אמיתי. הזן את התאריך שבו התקבלה הודעת הזכייה.
-      שדה שתשאיר ריק לא ישתנה.</div>
+      הזן את התאריך שבו התקבלה הודעת הזכייה. שדה שלא תשנה — לא ישתנה. השמירה מתבצעת רק אם כל התאריכים תקינים.</div>
     ${list.map(l=>`<div class="wd-row">
         <div class="wd-txt"><b>${escHtml(l.address)}</b>${l.city?`<span>${escHtml(l.city)}</span>`:''}
-          <span class="wd-sub">התקבל ${fmtDate(l.date)}${l.winCompany?' · '+escHtml(l.winCompany):''}</span></div>
-        <input type="date" class="wd-in" data-lid="${l.id}" min="${escHtml(l.date||'')}" max="${td}" value="${escHtml(l.winDate||'')}"
-          aria-label="תאריך זכייה — ${escHtml(l.address)}">
+          <span class="wd-sub">התקבל ${fmtDate(l.date)}${l.winDateUnknown&&!l.winDate?' · מסומן: תאריך לא ידוע':''}${l.winCompany?' · '+escHtml(l.winCompany):''}</span></div>
+        <input type="date" class="wd-in" data-lid="${l.id}" data-orig="${escHtml(l.winDate||'')}" min="${escHtml(l.date||'')}" max="${td}"
+          value="${escHtml(l.winDate||'')}" placeholder="${escHtml(cur(l))}" aria-label="תאריך זכייה — ${escHtml(l.address)}">
       </div>`).join('')}
     <div id="_wdErr" style="display:none;color:var(--red);font-size:12px;margin-top:8px"></div>
     <div class="form-actions">
@@ -3877,31 +3996,34 @@ function openWinDateTool(){
   document.body.appendChild(m);
 }
 function saveWinDates(){
-  const ins=[...document.querySelectorAll('#_winDateModal .wd-in')];
-  const td=todayIL(), changed=[];
-  for(const inp of ins){
-    const v=inp.value.trim(); if(!v) continue;
-    const l=leads.find(x=>x.id===Number(inp.dataset.lid)); if(!l) continue;
-    if(!isValidISODate(v) || v>td || (l.date && v<l.date)){
-      const e=document.getElementById('_wdErr');
-      e.textContent=`תאריך לא תקין עבור ${l.address}: חייב להיות בין תאריך הקבלה להיום`; e.style.display='block';
-      inp.focus(); return;
-    }
-    if(l.winDate===v) continue;
-    const before=l.winDate?fmtDate(l.winDate):'—';
-    l.winDate=v;
-    if(!l.history) l.history=[];
-    const now=new Date();
-    l.history.push({ts:now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}),
-      iso:now.toISOString(), changes:[{field:'תאריך זכייה', from:before, to:fmtDate(v)}]});
-    changed.push(l.id);
+  // שלב 1: קריאת כל הקלט ואימות מלא — בלי לשנות שום נתון
+  const td=todayIL(), plan=[], errs=[];
+  document.querySelectorAll('#_winDateModal .wd-in').forEach(inp=>{
+    inp.style.borderColor='';
+    const v=inp.value.trim(), orig=inp.dataset.orig||'';
+    if(v===orig) return;
+    const l=leads.find(x=>x.id===Number(inp.dataset.lid)); if(!l) return;
+    if(v && (!isValidISODate(v) || v>td || (l.date && v<l.date))){ errs.push({inp,l}); return; }
+    plan.push({l, v});
+  });
+  const e=document.getElementById('_wdErr');
+  if(errs.length){
+    errs.forEach(x=>x.inp.style.borderColor='var(--red)');
+    e.textContent=`תאריך לא תקין ב-${errs.map(x=>x.l.address).join(', ')}: חייב להיות בין תאריך הקבלה להיום. שום שינוי לא נשמר.`;
+    e.style.display='block'; errs[0].inp.focus(); return;
   }
+  if(!plan.length){ document.getElementById('_winDateModal')?.remove(); toast('לא בוצע שינוי'); return; }
+  // שלב 2: החלה של כל השינויים יחד, ושמירה אחת
+  const now=new Date(), ts=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  plan.forEach(({l,v})=>{
+    const before=l.winDate?fmtDate(l.winDate):(l.winDateUnknown?'לא ידוע':'—');
+    l.winDate=v; if(v) l.winDateUnknown=false;
+    (l.history=l.history||[]).push({ts, iso:now.toISOString(), changes:[{field:'תאריך זכייה', from:before, to:v?fmtDate(v):'בוטל התיקון'}]});
+  });
   document.getElementById('_winDateModal')?.remove();
-  if(!changed.length){ toast('לא בוצע שינוי'); return; }
-  saveData(changed);
-  try{ renderAnalytics(); }catch(e){}
-  try{ renderDash(); }catch(e){}
-  toast(`✅ עודכנו ${changed.length} תאריכי זכייה`);
+  saveData(plan.map(p=>p.l.id));
+  try{ renderAnalytics(); }catch(e){} try{ renderDash(); }catch(e){}
+  toast(`✅ עודכנו ${plan.length} תאריכי זכייה`);
 }
 
 
@@ -3911,36 +4033,39 @@ function saveWinDates(){
 function renderWinsMonthly(){
   const el=document.getElementById('anWinsMonthly');
   if(!el) return;
-  const BULK=5;
+  const SUSPECT=5;   // 5+ זכיות באותו יום ללא תיקון — מוצגות ונספרות, עם בקשת בירור (לא מוחרגות אוטומטית)
   const MONTHS=['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
   const from=(typeof periodStart==='function')?periodStart():null;
   const okD=d=>d&&!isNaN(d);
-  // raw = התאריך המקורי במערכת (בלי תיקון ידני). ימי הזנה מרוכזת נקבעים לפיו — כך שתיקון
-  // חלק מהזכיות לא מוריד את השאר מתחת לסף והופך אותן בטעות ל"זכיות אמיתיות".
-  const wins=leads.filter(l=>l.status===WON_STATUS).map(l=>{
-    const fixed=!!(l.winDate && isValidISODate(l.winDate));
-    const raw=winDateOf(Object.assign({},l,{winDate:''}));
-    return {l, fixed, raw, d: fixed ? new Date(l.winDate) : raw};
-  });
   const dayKey=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const perDay={}; wins.forEach(w=>{ if(okD(w.raw)){const k=dayKey(w.raw); perDay[k]=(perDay[k]||0)+1;} });
-  const bulkDays=Object.keys(perDay).filter(k=>perDay[k]>=BULK);
-  const noDate=wins.filter(w=>!w.fixed && !okD(w.raw)).length;
-  const bulk=wins.filter(w=>!w.fixed && okD(w.raw) && bulkDays.includes(dayKey(w.raw)));
-  const real=wins.filter(w=>okD(w.d) && !bulk.includes(w) && (!from || dayKey(w.d)>=from));
+  const fmtD=k=>{const [y,m,d]=k.split('-'); return `${+d}.${+m}.${y}`;};
+  const wins=leads.filter(l=>l.status===WON_STATUS).map(l=>({l, d:winDateOf(l)}));
+  const unknown=wins.filter(w=>w.l.winDateUnknown && !w.l.winDate);          // סומנו במפורש: תאריך לא ידוע
+  const noDate =wins.filter(w=>!w.l.winDateUnknown && !okD(w.d));
+  const dated  =wins.filter(w=>okD(w.d));
+  // חשד ליום הזנה: 5+ זכיות באותו יום, בלי תיקון ידני — נספרות, אבל מוצגת בקשת בירור
+  // החשד נקבע לפי התאריך המקורי במערכת (כולל זכיות שכבר תוקנו), כדי שתיקון חלקי לא יעלים את האזהרה על השאר
+  const perDay={};
+  wins.filter(w=>!w.l.winDateUnknown).forEach(w=>{ const raw=winDateOf(Object.assign({},w.l,{winDate:''}));
+    if(okD(raw)){ const k=dayKey(raw); (perDay[k]=perDay[k]||[]).push(w); } });
+  const suspect=Object.entries(perDay).filter(([k,ws])=>ws.length>=SUSPECT)
+    .map(([k,ws])=>[k, ws.filter(w=>!w.l.winDate).map(w=>w.l.id)]).filter(([k,ids])=>ids.length);
+  const real=dated.filter(w=>!from || dayKey(w.d)>=from);
+  window._winsToFix=[...new Set([...unknown,...noDate].map(w=>w.l.id).concat(suspect.flatMap(([k,ids])=>ids)))];
+  window._winsSuspect=Object.fromEntries(suspect);
+
+  const note=[];
+  suspect.forEach(([k,ids])=>note.push(`⚠️ ${ids.length} זכיות רשומות ב-${fmtD(k)} — אם זה יום הזנה ולא יום הזכייה בפועל:
+    <button type="button" class="btn" style="font-size:11px;padding:3px 9px" onclick="markWinsUnknown('${k}')">סמן כתאריך לא ידוע</button>`));
+  if(unknown.length) note.push(`${unknown.length} זכיות בתאריך לא ידוע (סומנו) — לא נכללות בפילוח`);
+  if(noDate.length) note.push(`${noDate.length} זכיות ללא תאריך`);
+  if(window._winsToFix.length) note.push(`<button type="button" class="btn" style="font-size:11.5px;padding:5px 12px;margin-top:6px" onclick="openWinDateTool()">📅 עדכן תאריכי זכייה (${window._winsToFix.length})</button>`);
 
   const grid={};
   real.forEach(w=>{ const y=w.d.getFullYear(), m=w.d.getMonth(); (grid[y]=grid[y]||Array(12).fill(0))[m]++; });
   const years=Object.keys(grid).sort().reverse();
-  const fmtD=k=>{const [y,m,d]=k.split('-'); return `${+d}.${+m}.${y}`;};
-  const note=[];
-  if(bulk.length) note.push(`${bulk.length} זכיות נרשמו בהזנה מרוכזת (${bulkDays.map(fmtD).join(', ')}) ללא תאריך זכייה אמיתי — לא נכללו בפילוח`);
-  if(noDate) note.push(`${noDate} זכיות ללא תאריך`);
-  window._winsToFix = bulk.map(w=>w.l.id).concat(wins.filter(w=>!w.fixed && !okD(w.raw)).map(w=>w.l.id));
-  if(window._winsToFix.length) note.push(`<button type="button" class="btn" style="font-size:11.5px;padding:5px 12px;margin-top:6px" onclick="openWinDateTool()">📅 עדכן תאריכי זכייה (${window._winsToFix.length})</button>`);
-
   if(!years.length){
-    el.innerHTML=`<h3>🏆 זכיות לפי חודש ושנה</h3><div style="color:var(--text2);font-size:13px">אין נתונים — אין זכיות עם תאריך מתועד בתקופה${note.length?'<br>'+note.join(' · '):''}</div>`;
+    el.innerHTML=`<h3>🏆 זכיות לפי חודש ושנה</h3><div style="color:var(--text2);font-size:13px">אין נתונים — אין זכיות עם תאריך בתקופה${note.length?'<br>'+note.join('<br>'):''}</div>`;
     return;
   }
   const max=Math.max(...years.flatMap(y=>grid[y]),1);
@@ -3953,7 +4078,21 @@ function renderWinsMonthly(){
         grid[y].map((n,i)=>`<div class="wm-c" style="${shade(n)}" title="${MONTHS[i]} ${y}: ${n} זכיות">${n||'·'}</div>`).join('')+
         `<div class="wm-t">${grid[y].reduce((a,b)=>a+b,0)}</div>`).join('')}
     </div></div>
-    ${note.length?`<div style="font-size:10.5px;color:var(--text2);margin-top:10px;line-height:1.55">${note.join(' · ')}</div>`:''}`;
+    ${note.length?`<div style="font-size:10.5px;color:var(--text2);margin-top:10px;line-height:1.7">${note.join('<br>')}</div>`:''}`;
+}
+
+// סימון מפורש (הכרעה של המשתמש): הזכיות של יום מסוים הוזנו בדיעבד — תאריך הזכייה לא ידוע
+function markWinsUnknown(dayK){
+  const ids=((window._winsSuspect||{})[dayK]||[]);
+  if(!ids.length) return;
+  const [y,m,d]=dayK.split('-');
+  if(!confirm(`לסמן ${ids.length} זכיות מ-${+d}.${+m}.${y} כ"תאריך זכייה לא ידוע"?\n\nהן לא ייספרו בפילוח החודשי עד שתזין להן תאריך. אפשר לבטל בכל עת דרך "עדכן תאריכי זכייה".`)) return;
+  const now=new Date(), ts=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  ids.forEach(id=>{ const l=leads.find(x=>x.id===id); if(!l) return;
+    l.winDateUnknown=true; (l.history=l.history||[]).push({ts, iso:now.toISOString(), changes:[{field:'תאריך זכייה',from:`${+d}.${+m}.${y}`,to:'לא ידוע (הוזן בדיעבד)'}]}); });
+  saveData(ids);
+  try{ renderAnalytics(); }catch(e){} try{ renderDash(); }catch(e){}
+  toast(`✅ ${ids.length} זכיות סומנו כתאריך לא ידוע`);
 }
 
 // איחוד כינויים של אותה עיר (לסטטיסטיקה בלבד — הנתונים עצמם לא משתנים)
@@ -3966,10 +4105,22 @@ function setCitySort(k){ _citySort=k; renderCityConversion(); try{ autoHideEmpty
 
 // לחיצה על עיר → רשימת הלידים מסוננת לאותה עיר
 function openCityLeads(city){
-  const t=document.getElementById('tab-leads'); if(t) t.click();
-  const q=document.getElementById('searchInput');
-  if(q){ q.value=city; }
-  try{ refresh(); }catch(e){}
+  window._qualityFilter=null; window._stagnantFilter=false; window._reasonFilter=null;
+  window._cityFilter={city:normCity(city), label:city, from:(typeof periodStart==='function'?periodStart():null)};
+  const tab=document.getElementById('tab-leads');
+  if(window.showTab && tab) showTab('leads', tab); else if(tab) tab.click();
+  document.getElementById('searchInput').value='';
+  ['filterCaller','filterReply','filterOwner'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  document.querySelectorAll('#statusDropdown .st-opt input[type=checkbox]').forEach(cb=>cb.checked=true);
+  currentPage=1; renderTable();
+  const n=(filteredLeads()||[]).length;
+  const per=(typeof periodLabel==='function' && window._cityFilter.from)?` · ${periodLabel()}`:'';
+  document.getElementById('_qualityBanner')?.remove();
+  const d=document.createElement('div'); d.id='_qualityBanner';
+  d.style.cssText='background:#eff6ff;border:1.5px solid #bfdbfe;color:#1e3a8a;border-radius:10px;padding:9px 12px;margin-bottom:12px;display:flex;align-items:center;gap:10px;font-size:12.5px;font-weight:600';
+  d.innerHTML=`<span style="flex:1">🗺️ מציג ${n} לידים בעיר ${escHtml(city)}${escHtml(per)}</span><button class="btn" style="font-size:11px;padding:4px 10px" onclick="clearQualityFilter()">✕ נקה</button>`;
+  const host=document.querySelector('#leadsSection .toolbar'); if(host&&host.parentNode) host.parentNode.insertBefore(d,host);
+  if(typeof updateStatusLabel==='function') updateStatusLabel();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 
@@ -4047,15 +4198,16 @@ function renderTrendCard(){
   leads.forEach(l=>{
     const k=(l.date||'').slice(0,7);
     if(data[k]) data[k].inn++;
-    const ev=eventDateOf(l);
-    const ek=_monthKey(ev);
+    // זכיות לפי תאריך הזכייה (כולל תיקון ידני / "לא ידוע"), סגירות לפי תאריך הסגירה — כמו בשאר הכרטיסים
+    const ev = l.status===WON_STATUS ? winDateOf(l) : (l.status===IRRELEVANT_STATUS ? closedDateOf(l,IRRELEVANT_STATUS) : null);
+    const ek = ev && !isNaN(ev) ? _monthKey(ev) : null;
     if(ek && data[ek]){
       if(l.status===WON_STATUS) data[ek].won++;
       else if(l.status===IRRELEVANT_STATUS) data[ek].lost++;
     }
   });
   // שקיפות: כמה סגירות לא ניתן לתארך
-  const undated = leads.filter(l=>CLOSED.includes(l.status) && !eventDateOf(l)).length;
+  const undated = leads.filter(l=>{ const d = l.status===WON_STATUS ? winDateOf(l) : (l.status===IRRELEVANT_STATUS ? closedDateOf(l,IRRELEVANT_STATUS) : null); return CLOSED.includes(l.status) && !(d && !isNaN(d)); }).length;
   const mx=Math.max(1,...keys.map(k=>Math.max(data[k].inn,data[k].won+data[k].lost)));
   const nm=k=>{const [y,m]=k.split('-');return ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'][+m-1];};
 
@@ -4267,8 +4419,9 @@ function renderDash(){
       }).join('')}
     </div>
     <div style="font-size:10.5px;color:var(--text2);margin-top:8px;line-height:1.5">המרה = זכיות מתוך העסקאות שנסגרו (מוצג מ-3 סגירות ומעלה).
-      ליד משותף ("א׳ וב׳") נספר לשני הפונים.${(()=>{const m=_callerCanon().merged; const e=Object.entries(m);
-        return e.length?` אוחדו: ${e.map(([a,b])=>escHtml(a)+' ← '+escHtml(b)).join(', ')}.`:'';})()}</div>`
+      ליד משותף מסומן ב-" + " ונספר לכל פונה.${(()=>{const n=callerSuggestions().length;
+        return n?` <button type="button" class="btn" style="font-size:10.5px;padding:2px 8px;margin-top:4px" onclick="openCallerReview()">💡 ${n} הצעות לבדיקת שמות</button>`:
+          ` <a href="#" onclick="openCallerReview();return false" style="font-size:10.5px">בדיקת שמות</a>`;})()}</div>`
     :`<div class="empty-state" style="padding:20px">אין נתונים</div>`);
 
   // ── ROW 4a: Type breakdown ────────────────────────────────────────────────
@@ -4302,7 +4455,7 @@ function renderDash(){
     </div>`).join('');
 
   // ── ROW 5: Wins by year & company ────────────────────────────────────────
-  const wins=scope.filter(l=>l.status===WON_STATUS);
+  const wins=winsInPeriod();   // זכיות שקרו בתקופה — גם בלידים שהתקבלו לפניה
 
   // By year — לפי תאריך הזכייה האמיתי (winDateOf), לא תאריך קבלת הליד
   const yearMap={};
@@ -4616,13 +4769,14 @@ function _saveLeadDraft(){
   const ov=document.getElementById('formOverlay'); if(!ov || !ov.classList.contains('open')) return;
   const v={}; _DRAFT_FIELDS.forEach(id=>{const e=document.getElementById(id); if(e) v[id]=e.value;});
   const has=_DRAFT_MEANINGFUL.some(id=>(v[id]||'').trim());
-  try{ has ? localStorage.setItem(LEAD_DRAFT_KEY, JSON.stringify({v, ts:Date.now()})) : localStorage.removeItem(LEAD_DRAFT_KEY); }catch(e){}
+  try{ has ? localStorage.setItem(LEAD_DRAFT_KEY, JSON.stringify({v, ts:Date.now(), u:window.__authUserId||''})) : localStorage.removeItem(LEAD_DRAFT_KEY); }catch(e){}
 }
-function clearLeadDraft(){ try{ localStorage.removeItem(LEAD_DRAFT_KEY); }catch(e){} document.getElementById('_draftNote')?.remove(); }
+function clearLeadDraft(){ clearTimeout(_draftTimer); try{ localStorage.removeItem(LEAD_DRAFT_KEY); }catch(e){} document.getElementById('_draftNote')?.remove(); }
 function _restoreLeadDraft(){
   let d=null; try{ d=JSON.parse(localStorage.getItem(LEAD_DRAFT_KEY)||'null'); }catch(e){}
   if(!d || !d.v) return;
   if(Date.now()-(d.ts||0) > 14*86400000){ clearLeadDraft(); return; }
+  if(d.u && window.__authUserId && d.u!==window.__authUserId) return;   // טיוטה של משתמש אחר — לא מוצגת
   _draftRestoring=true;
   _DRAFT_FIELDS.forEach(id=>{const e=document.getElementById(id); if(e && d.v[id]!=null) e.value=d.v[id];});
   try{ if(typeof toggleFormStatusFields==='function') toggleFormStatusFields(); if(typeof toggleIrrelNote==='function') toggleIrrelNote('f'); }catch(e){}
@@ -4664,7 +4818,11 @@ function openForm(){
   document.getElementById('formOverlay').classList.add('open');
   _restoreLeadDraft();
 }
-function closeForm(){document.getElementById('formOverlay').classList.remove('open');}
+function closeForm(){
+  // שמירת טיוטה מיידית (לפני סגירה) — כולל Escape ולחיצה מחוץ לטופס; מבטל טיימר ישן
+  clearTimeout(_draftTimer); _saveLeadDraft();
+  document.getElementById('formOverlay').classList.remove('open');
+}
 function closeFormOutside(e){if(e.target===document.getElementById('formOverlay'))closeForm();}
 
 
@@ -4815,7 +4973,13 @@ function renderAuditLog(filter){
 
   const body=document.getElementById('auditBody');
   if(!body) return;
-  if(!rows.length){ body.innerHTML='<div style="padding:18px;text-align:center;color:var(--text2)">אין רשומות</div>'; return; }
+  if(!rows.length){
+    // אין התאמה ברשומות שנטענו — אבל אם יש עוד בשרת, אפשר לטעון ולחפש שם
+    const more=(filter==='all'||filter==='created'||filter==='deleted'||filter==='historical') && _auditHasMore;
+    body.innerHTML='<div style="padding:18px;text-align:center;color:var(--text2)">אין רשומות מתאימות ב-'+_auditRows.length+' הרשומות שנטענו'+
+      (more?'<div style="margin-top:10px"><button class="btn" onclick="loadAuditPage()">טען עוד רשומות ⬇</button></div>':'')+'</div>';
+    return;
+  }
 
   const lbl=r=>_isBackfill(r)?'רשומה היסטורית':(r.action==='created'?'נוצר':(r.action==='deleted'?'נמחק':'אבוד'));
   const icon=r=>_isBackfill(r)?'🗄':(r.action==='created'?'✅':(r.action==='deleted'?'🗑':'⚠️'));
@@ -4879,20 +5043,20 @@ async function _saveLeadInner(){
   if(_em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_em)){ toast("⚠️ כתובת מייל לא תקינה"); return; }
   const _ph=(document.getElementById('f_phone')?.value||'').trim();
   if(_ph && !/^[\d\s\-+()]{7,}$/.test(_ph)){ toast("⚠️ מספר טלפון לא תקין"); return; }
+  // צילום מאומת של כל השדות לפני ההמתנה — שינוי בטופס בזמן הקצאת המזהה לא ייכנס לליד
+  const _st=document.getElementById('f_status').value, _rs=document.getElementById('f_irrelReason')?.value||'';
+  const _snap={date:document.getElementById('f_date').value, address, city,
+    type:document.getElementById('f_type').value, source:document.getElementById('f_source').value,
+    name:document.getElementById('f_name').value.trim(), status:_st, deadline:document.getElementById('f_deadline').value,
+    notes:document.getElementById('f_notes').value.trim(), email:_em, phone:_ph,
+    irrelReason:(_st===IRRELEVANT_STATUS ? _rs : ''),
+    irrelReasonNote:(_st===IRRELEVANT_STATUS && _rs===IRREL_OTHER ? (document.getElementById('f_irrelNote')?.value||'').trim() : ''),
+    winCompany:(_st===WON_STATUS ? (document.getElementById('f_winCompany')?.value.trim()||'') : '')};
+  { const _v=validateLeadInput(_snap); if(!_v.ok){ toast("⚠️ שדה לא תקין: "+_v.errors.join(', ')); return; } }
   const _alloc=await allocIds(1);
   if(!_alloc){ return; }
   const _newId=_alloc[0];
-  leads.unshift({id:_newId,date:document.getElementById('f_date').value,address,city,
-    type:document.getElementById('f_type').value,source:document.getElementById('f_source').value,
-    name:document.getElementById('f_name').value.trim(),
-    status:document.getElementById('f_status').value,
-    statusChangedAt:today,
-    deadline:document.getElementById('f_deadline').value,
-    replied:"לא",
-    notes:document.getElementById('f_notes').value.trim(),internalNotes:[],email:document.getElementById('f_email').value.trim(),phone:document.getElementById('f_phone').value.trim(),
-    irrelReason:(document.getElementById('f_status').value===IRRELEVANT_STATUS ? (document.getElementById('f_irrelReason')?.value||'') : ''),
-    irrelReasonNote:(document.getElementById('f_status').value===IRRELEVANT_STATUS && document.getElementById('f_irrelReason')?.value===IRREL_OTHER ? (document.getElementById('f_irrelNote')?.value||'').trim() : ''),
-    winCompany:(document.getElementById('f_status').value===WON_STATUS ? (document.getElementById('f_winCompany')?.value.trim()||'') : '')});
+  leads.unshift(Object.assign({id:_newId}, _snap, {statusChangedAt:today, replied:"לא", internalNotes:[]}));
   closeForm();refresh();
   saveData(_newId);
   // אמת שהשמירה בענן אכן הצליחה לפני הודעת הצלחה — אחרת הליד עלול "להיעלם"
@@ -4940,6 +5104,9 @@ function openEdit(id){
   document.getElementById('e_phone').value=l.phone||'';
   document.getElementById('e_budget').value=l.budget||'';
   document.getElementById('e_winCompany').value=l.winCompany||'';
+  { const _wd=document.getElementById('e_winDate'); if(_wd){ const d=(l.status===WON_STATUS)?winDateOf(l):null;
+      const iso=d&&!isNaN(d)?`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`:'';
+      _wd.value=iso; _wd.dataset.orig=iso; _wd.min=l.date||''; _wd.max=todayIL(); } }
   toggleWinCompany();
   document.getElementById('e_units_exist').value=l.units_exist||'';
   document.getElementById('e_units_new').value=l.units_new||'';
@@ -5037,33 +5204,40 @@ function renderAnalytics(){
     </div>`;
   }
 
-  // ── Year comparison ────────────────────────────────────────────────────
-  const years=[...new Set(leads.map(l=>l.date?.slice(0,4)).filter(Boolean))].sort().reverse().slice(0,4);
+  // ── השוואה שנתית: לידים שהתקבלו בשנה | סגירות שקרו בשנה (זכיות מול לא רלוונטי) ──
+  // שני מדדים נפרדים: אין לחלק זכיות של שנה אחת בלידים שהתקבלו בשנה אחרת (זה יצר 300% ו-200%-)
+  const _yOf=d=>d&&!isNaN(d)?String(d.getFullYear()):null;
+  const _ys=new Set();
+  leads.forEach(l=>{ if(l.date) _ys.add(l.date.slice(0,4));
+    if(l.status===WON_STATUS){ const y=_yOf(winDateOf(l)); if(y) _ys.add(y); }
+    if(l.status===IRRELEVANT_STATUS){ const y=_yOf(closedDateOf(l,IRRELEVANT_STATUS)); if(y) _ys.add(y); } });
+  const years=[..._ys].sort().reverse().slice(0,4);
   const yearData=years.map(y=>{
-    // לידים חדשים — לפי שנת קבלת הליד
-    const total=leads.filter(l=>l.date?.startsWith(y)).length;
-    // זכיות — לפי שנת הזכייה האמיתית (winDateOf)
-    const won=leads.filter(l=>l.status===WON_STATUS && _eventYear(winDateOf(l))===y).length;
-    // אי-רלוונטיות — לפי שנת הסגירה האמיתית (closedDateOf)
-    const irrelevant=leads.filter(l=>l.status===IRRELEVANT_STATUS && _eventYear(closedDateOf(l,IRRELEVANT_STATUS))===y).length;
+    const total=leads.filter(l=>(l.date||'').startsWith(y)).length;
+    const won=leads.filter(l=>l.status===WON_STATUS && _yOf(winDateOf(l))===y).length;
+    const irrelevant=leads.filter(l=>l.status===IRRELEVANT_STATUS && _yOf(closedDateOf(l,IRRELEVANT_STATUS))===y).length;
     const closed=won+irrelevant;
-    return { year:y, total, won, irrelevant, closed,
-      winRate: closed ? Math.round(won/closed*1000)/10 : null };
+    return {year:y,total,won,irrelevant,closed, winRate: closed?Math.round(won/closed*1000)/10:null};
   });
-  const maxY=Math.max(...yearData.map(y=>y.total),1);
+  const maxT=Math.max(...yearData.map(y=>y.total),1);
   document.getElementById('anConversion').innerHTML=`<h3>📊 השוואה שנתית</h3>`+
     yearData.map(y=>`
-      <div style="margin-bottom:14px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-          <span style="font-weight:700;font-size:13px">${y.year}</span>
-          <span style="font-size:12px;color:var(--text2)">${y.total} לידים | ${y.won} זכיות | ${y.closed} סגורות | ${y.winRate!=null?y.winRate+'% זכייה מהסגורות':'אין סגורות'}</span>
+      <div style="margin-bottom:16px">
+        <div style="font-weight:800;font-size:13px;margin-bottom:6px">${y.year}</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text2);margin-bottom:5px">
+          <span style="min-width:112px">לידים שהתקבלו: <b style="color:var(--navy)">${y.total}</b></span>
+          <div class="bar" style="flex:1;margin:0"><div class="bar-fill" style="width:${Math.round(y.total/maxT*100)}%;background:var(--blue)"></div></div>
         </div>
-        <div style="height:8px;background:var(--border);border-radius:4px;overflow:hidden;display:flex">
-          <div style="width:${Math.round(y.won/Math.max(y.total,1)*100)}%;background:var(--green)"></div>
-          <div style="width:${Math.round((y.total-y.won-y.irrelevant)/Math.max(y.total,1)*100)}%;background:var(--blue)"></div>
-          <div style="width:${Math.round(y.irrelevant/Math.max(y.total,1)*100)}%;background:var(--gray-bg)"></div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text2)">
+          <span style="min-width:112px">נסגרו בשנה: <b style="color:var(--navy)">${y.closed}</b></span>
+          ${y.closed?`<div style="flex:1;height:8px;border-radius:4px;overflow:hidden;display:flex;background:var(--border)">
+            <div style="width:${y.won/y.closed*100}%;background:var(--green)" title="${y.won} זכיות"></div>
+            <div style="width:${y.irrelevant/y.closed*100}%;background:#cbd5e1" title="${y.irrelevant} לא רלוונטי"></div></div>
+            <span style="white-space:nowrap"><b style="color:var(--green)">${y.won}</b> זכיות · ${y.winRate}%</span>`
+          :`<span style="flex:1">אין סגירות</span>`}
         </div>
-      </div>`).join('');
+      </div>`).join('')+
+    `<div style="font-size:10.5px;color:var(--text2);line-height:1.5">לידים — לפי שנת קבלה. זכיות וסגירות — לפי שנת האירוע (גם בלידים שהתקבלו בשנה קודמת). אחוז = זכיות מתוך הסגירות באותה שנה.</div>`;
 
   // ── ניתוח כנס דיירים ──────────────────────────────────────────────────
   const knesStatuses=['ממתין לכנס דיירים','התקיים כנס - ממתינים להחלטה'];
@@ -5154,12 +5328,13 @@ function renderAnalytics(){
   AL.forEach(l=>{
     const comps=(l.competitor||'').split(',').map(s=>s.trim()).filter(Boolean);
     comps.forEach(c=>{
-      if(!compMap[c])compMap[c]={total:0,lostTo:0,closed:0,won:0};
+      if(!compMap[c])compMap[c]={total:0,lostTo:0,lostUnknown:0,closed:0,won:0};
       compMap[c].total++;
-      // "הפסדנו למתחרה" רק כשהסיבה המתועדת היא באמת מעבר למתחרה.
-      // סגירה מסיבה אחרת (למשל "לא כלכלי") נספרת כ"נסגרו כלא רלוונטיים".
+      // "הפסדנו למתחרה" רק כשהסיבה המתועדת היא מעבר למתחרה *וזה המתחרה היחיד שרשום*.
+      // כשרשומים כמה — הזוכה לא ידוע: נספר כ"הפסד, זוכה לא ידוע" ולא כהפסד לכל אחד.
+      // סגירה מסיבה אחרת (למשל "לא כלכלי") נספרת כ"נסגרו מסיבה אחרת".
       if(l.status===IRRELEVANT_STATUS){
-        if((l.irrelReason||'').trim()==='הלך למתחרה') compMap[c].lostTo++;
+        if((l.irrelReason||'').trim()==='הלך למתחרה'){ if(comps.length===1) compMap[c].lostTo++; else compMap[c].lostUnknown++; }
         else compMap[c].closed++;
       }
       if(l.status===WON_STATUS)compMap[c].won++;
@@ -5167,17 +5342,19 @@ function renderAnalytics(){
   });
   const cRows=Object.entries(compMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
   document.getElementById('anCompetitors').innerHTML=`<h3>⚔️ מתחרים בעסקאות</h3>
-    ${cRows.length?`<div style="display:grid;grid-template-columns:1fr auto auto auto auto;gap:5px 12px;font-size:12px;align-items:center">
+    ${cRows.length?`<div style="display:grid;grid-template-columns:minmax(0,1fr) repeat(5,auto);gap:5px 10px;font-size:12px;align-items:center;overflow-x:auto">
       <div style="font-weight:700;color:var(--text2);font-size:11px">מתחרה</div>
       <div style="font-weight:700;color:var(--text2);font-size:11px">עסקאות</div>
       <div style="font-weight:700;color:#16a34a;font-size:11px">ניצחנו</div>
       <div style="font-weight:700;color:#dc2626;font-size:11px" title="לידים שסומנו כלא רלוונטיים עם סיבה מתועדת: הלך למתחרה">הפסדנו למתחרה</div>
-      <div style="font-weight:700;color:var(--text2);font-size:11px" title="נסגרו כלא רלוונטיים מסיבה אחרת (למשל לא כלכלי) — לא הפסד תחרותי מתועד">נסגרו כלא רלוונטיים</div>
+      <div style="font-weight:700;color:#b45309;font-size:11px" title="הלך למתחרה, אבל רשומים כמה מתחרים — לא ידוע מי זכה">הפסד, זוכה לא ידוע</div>
+      <div style="font-weight:700;color:var(--text2);font-size:11px" title="נסגרו כלא רלוונטיים מסיבה אחרת (למשל לא כלכלי) — לא הפסד תחרותי מתועד">נסגרו מסיבה אחרת</div>
       ${cRows.map(([c,v])=>`
         <div style="font-weight:600">${escHtml(c)}</div>
         <div style="font-weight:700">${v.total}</div>
         <div style="font-weight:700;color:#16a34a">${v.won}</div>
         <div style="font-weight:700;color:#dc2626">${v.lostTo}</div>
+        <div style="font-weight:700;color:#b45309">${v.lostUnknown}</div>
         <div style="font-weight:700;color:var(--text2)">${v.closed}</div>`).join('')}
     </div>`:'<div style="color:var(--text2);font-size:13px">אין נתונים — תעד מתחרים בשדה "מתחרה בעסקה" בעריכת ליד</div>'}`;
   // ── עוזרי תאריך להיסטוריה ─────────────────────────────────────────────
@@ -5407,6 +5584,12 @@ function saveEdit(){
 
   const _eEmEl=document.getElementById('e_email'), _eEm=_eEmEl.value.trim();
   if(_eEm && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(_eEm)){ _fieldError(_eEmEl,'כתובת מייל לא תקינה'); return; }
+  { // תאריך זכייה (אם שונה ידנית) — בין תאריך הקבלה להיום
+    const _wd=document.getElementById('e_winDate'), _st=document.getElementById('e_status').value;
+    const _dv=(document.getElementById('e_date')||{}).value||'';
+    if(_wd && _st===WON_STATUS && _wd.value && _wd.value!==(_wd.dataset.orig||'') &&
+       (!isValidISODate(_wd.value) || _wd.value>todayIL() || (_dv && _wd.value<_dv))){ _fieldError(_wd,'תאריך זכייה חייב להיות בין תאריך הקבלה להיום'); return; }
+  }
   { // סיבת "אחר" מחייבת פירוט
     const _st=document.getElementById('e_status').value, _rs=document.getElementById('e_irrelReason').value;
     const _nt=document.getElementById('e_irrelNote');
@@ -5455,7 +5638,7 @@ function saveEdit(){
   l.type=document.getElementById('e_type').value;
   l.source=document.getElementById('e_source').value;
   l.name=document.getElementById('e_name').value.trim();
-  if(newStatus!==l.status) l.statusChangedAt=today;
+  if(newStatus!==l.status){ l.statusChangedAt=today; _onStatusChanged(l, l.status, newStatus); }
   l.status=newStatus;
   l.deadline=newDeadline;
   l.replied=newReplied;
@@ -5463,6 +5646,13 @@ function saveEdit(){
   l.budget=document.getElementById('e_budget').value||'';
   // שמור סיבה/חברה זוכה רק אם הסטטוס באמת מתאים — אחרת נקה (שלא יישאר ערך ישן שמזהם את הסטטיסטיקה)
   l.winCompany=(l.status===WON_STATUS) ? (document.getElementById('e_winCompany').value.trim()||'') : '';
+  { const _wd=document.getElementById('e_winDate');
+    if(_wd && l.status===WON_STATUS && _wd.value!==(_wd.dataset.orig||'')){
+      const before=_wd.dataset.orig?fmtDate(_wd.dataset.orig):'—';
+      l.winDate=_wd.value||''; if(_wd.value) l.winDateUnknown=false;
+      const now=new Date(); (l.history=l.history||[]).push({ts:now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}),
+        iso:now.toISOString(), changes:[{field:'תאריך זכייה',from:before,to:_wd.value?fmtDate(_wd.value):'לפי תאריך שינוי הסטטוס'}]});
+    } }
   l.irrelReason=(l.status===IRRELEVANT_STATUS) ? (document.getElementById('e_irrelReason').value||'') : '';
   l.irrelReasonNote=(l.status===IRRELEVANT_STATUS && l.irrelReason===IRREL_OTHER) ? ((document.getElementById('e_irrelNote')||{}).value||'').trim() : '';
   // אישור בעלים — שמור תאריך רק כשמסמנים לראשונה
@@ -5494,6 +5684,21 @@ function saveEdit(){
 function closeEdit(){document.getElementById('editOverlay').classList.remove('open');editingId=null;}
 function closeEditOutside(e){if(e.target===document.getElementById('editOverlay'))closeEdit();}
 
+
+// ── ולידציה משותפת לכל מסלולי היצירה (טופס, ייבוא טקסט, Excel, רשימת כתובות) — לפני כל שינוי והקצאת מזהה ──
+// תאריך ריק = "לא נמסר" (ברירת מחדל מתועדת: היום לליד חדש); תאריך מפורש לא תקין = שגיאה, לא מחליפים אותו.
+function validateLeadInput(o){
+  const e=[];
+  if(!String(o.address||'').trim()) e.push('כתובת');
+  if(!String(o.city||'').trim())    e.push('עיר');
+  if(o.date && !isValidISODate(o.date))         e.push('תאריך קבלה');
+  if(o.deadline && !isValidISODate(o.deadline)) e.push('תאריך לתגובה');
+  if(o.status && !STATUS_DEFINITIONS.some(d=>d.name===o.status)) e.push('סטטוס');
+  if(o.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(o.email).trim())) e.push('מייל');
+  if(o.phone && !/^[\d\s\-+()]{7,}$/.test(String(o.phone).trim()))         e.push('טלפון');
+  return {ok:!e.length, errors:e};
+}
+
 async function importLeads(){
   const raw=document.getElementById('importText').value.trim();
   if(!raw){toast("⚠️ אין תוכן לייבוא"); return;}
@@ -5504,7 +5709,7 @@ async function importLeads(){
 
   // ── שלב 1: פענוח וולידציה של כל השורות לפני שינוי כלשהו ──
   const parsedRows=[];      // רשומות תקינות מוכנות
-  const cityErrors=[]; const badDateRows=[];      // שורות ללא עיר (מספר שורה)
+  const cityErrors=[]; const badDateRows=[]; const addrErrors=[];      // שורות ללא עיר (מספר שורה)
   const unknownSet=new Set();
   lines.forEach((line, li)=>{
     let delim=delimSel;
@@ -5515,12 +5720,13 @@ async function importLeads(){
       const bp=parseBulkLine(line);
       if(bp && bp.street){
         if(!bp.city || !bp.city.trim()){ cityErrors.push(li+1); return; }
-        parsedRows.push({date:today,address:bp.street,city:bp.city.trim(),type:'תמ"א 38/2',source:'אחר',name:defaultName,status:'חדש',statusChangedAt:today,deadline:'',replied:'לא',notes:bp.note||'',internalNotes:[]});
+        parsedRows.push({__li:li+1,date:today,address:bp.street,city:bp.city.trim(),type:'תמ"א 38/2',source:'אחר',name:defaultName,status:'חדש',statusChangedAt:today,deadline:'',replied:'לא',notes:bp.note||'',internalNotes:[]});
       }
       return; // שורה לא-מבנית שלא פוענחה — פשוט מדולגת
     }
     // שורה מובנית
     if(!parts[2] || !parts[2].trim()){ cityErrors.push(li+1); return; } // אין עיר
+    if(!parts[1] || !parts[1].trim()){ addrErrors.push(li+1); return; } // אין כתובת — לא יוצרים ליד
     let dateStr=parts[0]||today;
     if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(dateStr)){const[d,m,y]=dateStr.split('/');dateStr=`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;}
     // תאריך מפורש שאינו תקין — דלג על השורה ודווח, אל תמיר בשקט
@@ -5528,9 +5734,16 @@ async function importLeads(){
     const statusRaw=(parts[6]||'חדש').trim();
     if(statusRaw && !validSt.includes(statusRaw)) unknownSet.add(statusRaw);
     const status=validSt.includes(statusRaw)?statusRaw:'חדש';
-    parsedRows.push({date:dateStr,address:parts[1]||'',city:parts[2].trim(),type:parts[3]||'אחר',source:parts[4]||'אחר',name:(parts[5]||'').trim()||defaultName,status,statusChangedAt:today,deadline:'',replied:CLOSED.includes(status)?'כן':'לא',notes:parts[7]||'',internalNotes:[]});
+    parsedRows.push({__li:li+1,date:dateStr,address:parts[1]||'',city:parts[2].trim(),type:parts[3]||'אחר',source:parts[4]||'אחר',name:(parts[5]||'').trim()||defaultName,status,statusChangedAt:today,deadline:'',replied:CLOSED.includes(status)?'כן':'לא',notes:parts[7]||'',internalNotes:[]});
   });
 
+  // ── שלב 1ב: ולידציה משותפת — שורה לא תקינה נדחית ומדווחת (לפני הקצאת מזהים) ──
+  const invalidRows=[];
+  for(let _i=parsedRows.length-1;_i>=0;_i--){
+    const _r=parsedRows[_i], _v=validateLeadInput(_r);
+    if(!_v.ok){ invalidRows.unshift(`${_r.__li} (${_v.errors.join(', ')})`); parsedRows.splice(_i,1); }
+    else delete _r.__li;
+  }
   // ── שלב 2: אזהרת סטטוסים לא מוכרים ──
   if(unknownSet.size){
     const list=[...unknownSet].map(s=>'• '+s).join('\n');
@@ -5539,7 +5752,7 @@ async function importLeads(){
   }
 
   if(parsedRows.length===0){
-    const errMsg=(cityErrors.length?` | ${cityErrors.length} שורות ללא עיר דולגו (שורות: ${cityErrors.join(', ')})`:'')
+    const errMsg=(cityErrors.length?` | ${cityErrors.length} שורות ללא עיר דולגו (שורות: ${cityErrors.join(', ')})`:'')+(addrErrors.length?` | ${addrErrors.length} שורות ללא כתובת דולגו (שורות: ${addrErrors.join(', ')})`:'')+(invalidRows.length?` | ${invalidRows.length} שורות לא תקינות דולגו: ${invalidRows.slice(0,6).join('; ')}`:'')
                +(badDateRows.length?` | ${badDateRows.length} שורות עם תאריך לא תקין (שורות: ${badDateRows.join(', ')})`:'');
     document.getElementById('importResult').textContent=`לא יובאו לידים${errMsg}`;
     return;
@@ -5553,6 +5766,8 @@ async function importLeads(){
   // ── שלב 4: דוח תוצאות ──
   let msg=`✅ יובאו ${parsedRows.length} לידים`;
   if(cityErrors.length) msg+=` | ⚠️ ${cityErrors.length} שורות ללא עיר דולגו (שורות: ${cityErrors.join(', ')})`;
+  if(addrErrors.length) msg+=` | ⚠️ ${addrErrors.length} שורות ללא כתובת דולגו (שורות: ${addrErrors.join(', ')})`;
+  if(invalidRows.length) msg+=` | ⚠️ ${invalidRows.length} שורות לא תקינות דולגו: ${invalidRows.slice(0,6).join('; ')}`;
   if(badDateRows.length) msg+=` | ⚠️ ${badDateRows.length} שורות עם תאריך לא תקין דולגו (שורות: ${badDateRows.join(', ')})`;
   document.getElementById('importResult').textContent=msg;
   document.getElementById('importText').value='';
@@ -6105,7 +6320,7 @@ async function importFromExcel(event){
         'name':['שם הפונה','שם'],
         'status':['סטטוס'],
         'deadline':['תאריך לתגובה','תגובה עד'],
-        'replied':['תגובה נשלחה?','תגובה?','נענה'],
+        'replied':['תגובה נשלחה?','תגובה?','תגובה','נענה'],
         'notes':['הערות'],
       };
       // התאמה מדויקת קודם (למשל "תגובה?"), ורק אחר כך "מכיל"; עמודה לא משויכת לשני שדות
@@ -6113,7 +6328,8 @@ async function importFromExcel(event){
       const _norm=h=>String(h).replace(/[⇅↑↓▲▼]/g,'').trim();
       Object.entries(mapping).forEach(([key,aliases])=>{
         let idx=headers.findIndex((h,i)=>!_used.has(i) && aliases.some(a=>_norm(h)===a));
-        if(idx<0) idx=headers.findIndex((h,i)=>!_used.has(i) && aliases.some(a=>_norm(h).includes(a)));
+        // שדה כן/לא (replied) — התאמה מדויקת בלבד: "תאריך לתגובה"/"תגובה עד" הן עמודות תאריך
+        if(idx<0 && key!=='replied') idx=headers.findIndex((h,i)=>!_used.has(i) && aliases.some(a=>_norm(h).includes(a)));
         if(idx>=0){ colIdx[key]=idx; _used.add(idx); }
       });
 
@@ -6137,7 +6353,7 @@ async function importFromExcel(event){
       }
 
       let imported=0, updated=0, skipped=0;
-      const cityErrRows=[], badDateRows=[];
+      const cityErrRows=[], badDateRows=[]; let rejectedNew=0;
       // ── שום דבר לא משתנה ב-leads עד שהכול אומת והוקצו מזהים ──
       const pendingNew=[];        // רשומות חדשות ייחודיות (לפי כתובת+עיר מנורמלות)
       const newKeys=new Map();    // מפתח מנורמל → הרשומה המתוכננת
@@ -6155,10 +6371,15 @@ async function importFromExcel(event){
         if(address===city || /^סה["״]כ/.test(address) || (address.includes(' | ') && address.includes(':'))){ return; }
 
         let dateStr=_xlDate(row[colIdx.date]);
-        if(row[colIdx.date] && String(row[colIdx.date]).trim()!=='—' && !dateStr) badDateRows.push(_rowNum);
+        const _rawD=String(row[colIdx.date]==null?'':row[colIdx.date]).trim();
+        const _dateBad=!!_rawD && _rawD!=='—' && !dateStr;
         // ברירת המחדל (today) תוחל רק אחרי סיום מיזוג הכפילויות — כדי שתא ריק לא ידרוס
 
         let deadlineStr=_xlDate(row[colIdx.deadline]);
+        const _rawDl=String(row[colIdx.deadline]==null?'':row[colIdx.deadline]).trim();
+        const _dlBad=!!_rawDl && _rawDl!=='—' && !deadlineStr;
+        if(_dateBad) badDateRows.push(`${_rowNum} (תאריך קבלה)`);
+        if(_dlBad)   badDateRows.push(`${_rowNum} (תאריך לתגובה)`);
 
         const statusRaw=String(row[colIdx.status]||'').trim();
         // '' = תא ריק (לא ידרוס). ערך מפורש → מומר/מנורמל.
@@ -6167,6 +6388,8 @@ async function importFromExcel(event){
         const replied = repliedRaw ? ((repliedRaw.includes('כן')||repliedRaw.includes('✔'))?'כן':'לא') : '';
 
         const existing=leads.find(l=>l.address.trim()===address&&l.city.trim()===city);
+        // ליד חדש עם תאריך מפורש לא תקין — לא נוצר (לא ממציאים תאריך); ליד קיים — התאריך פשוט לא משתנה
+        if(!existing && (_dateBad||_dlBad)){ rejectedNew++; return; }
         if(existing){
           // עובדים על עותק מתוכנן — לא נוגעים בליד האמיתי
           let draft=plannedUpdates.get(existing.id);
@@ -6179,6 +6402,7 @@ async function importFromExcel(event){
           if(status && draft.status!==status){
             if(!draft.history)draft.history=[];
             draft.history.push({ts:histTs, iso:nowD.toISOString(), changes:[{field:'סטטוס',from:draft.status,to:status}]});
+            _onStatusChanged(draft, draft.status, status);
             draft.status=status;
             draft.statusChangedAt=today;
             draft.__changed=true;
@@ -6216,6 +6440,7 @@ async function importFromExcel(event){
             notes:colIdx.notes!==undefined?String(row[colIdx.notes]||'').trim():'',
             internalNotes:[], history:[],
           };
+          { const _v=validateLeadInput(newLead); if(!_v.ok){ rejectedNew++; badDateRows.push(`${_rowNum} (${_v.errors.join(', ')})`); return; } }
           pendingNew.push(newLead);
           newKeys.set(nKey,newLead);
         }
@@ -6264,7 +6489,7 @@ async function importFromExcel(event){
       if(changedIds.length){
         saveData(changedIds);   // רק המזהים שבאמת השתנו
         _logCreatedAfterSave(newLeads,'importFromExcel');  // רק חדשים, לא עדכונים
-        toast(`⏳ עודכנו ${updated} | נוספו ${imported}${mergedDupRows?` | ${mergedDupRows} שורות כפולות מוזגו`:''}${skipped?` | ${skipped} דולגו`:''}${cityErrRows.length?` (ללא עיר: שורות ${cityErrRows.join(', ')})`:''}${badDateRows.length?` | תאריך לא תקין לא נקלט בשורות ${badDateRows.slice(0,8).join(', ')}${badDateRows.length>8?'…':''}`:''} — שומר בענן...`);
+        toast(`⏳ עודכנו ${updated} | נוספו ${imported}${mergedDupRows?` | ${mergedDupRows} שורות כפולות מוזגו`:''}${skipped?` | ${skipped} דולגו`:''}${cityErrRows.length?` (ללא עיר: שורות ${cityErrRows.join(', ')})`:''}${badDateRows.length?` | תאריך לא תקין לא נקלט בשורות ${badDateRows.slice(0,8).join(', ')}${badDateRows.length>8?'…':''}`:''}${rejectedNew?` | ${rejectedNew} לידים חדשים לא נוצרו בגלל תאריך לא תקין`:''} — שומר בענן...`);
       } else {
         toast(`לא נמצאו שינויים לייבוא${mergedDupRows?` (${mergedDupRows} שורות כפולות מוזגו)`:''}${skipped?` (${skipped} שורות דולגו)`:''}`);
       }
@@ -6309,6 +6534,7 @@ async function loadContacts(){
   if(data && data.value){
     try{
       contacts=JSON.parse(data.value);
+      _setContactsBase(contacts);   // גרסת הבסיס לחישוב מה השתנה בשמירה הבאה
     }catch(e){
       // JSON פגום בענן — אל תבנה מחדש ואל תדרוס! שמור מקומי והתראה
       console.error('Corrupt contacts JSON in cloud — not overwriting');
@@ -6340,27 +6566,49 @@ async function loadContacts(){
 
 // שמירה אטומית של אנשי קשר + רשימת נמחקים בפעולת upsert אחת.
 // לא נוגע ב-localStorage לפני הצלחת הענן. מחזיר true/false.
+
+// ── F05: אנשי קשר — שולחים רק מה שהשתנה (לעומת הגרסה האחרונה שאושרה בשרת); השרת ממזג לפי מזהה ──
+let _contactsBase=null, _contactsRpc=true;
+function _setContactsBase(list){ _contactsBase={}; (list||[]).forEach(x=>{ if(x&&x.id!=null) _contactsBase[String(x.id)]=JSON.stringify(x); }); }
+function _contactsDiff(list){
+  const ups=[], seen=new Set();
+  (list||[]).forEach(x=>{ if(!x||x.id==null) return; const k=String(x.id); seen.add(k);
+    if(!_contactsBase || _contactsBase[k]!==JSON.stringify(x)) ups.push(x); });
+  // בלי גרסת בסיס (לא נטען מהשרת) — לא מוחקים דבר
+  const del=_contactsBase ? Object.keys(_contactsBase).filter(k=>!seen.has(k)) : [];
+  return {ups, del};
+}
+async function _mergeContactsRemote(list, deletedNames){
+  const {ups, del}=_contactsDiff(list);
+  if(_contactsRpc){
+    const {data, error}=await sb.rpc('merge_contacts',{p_upserts:ups, p_deleted_ids:del, p_deleted_names:(deletedNames===undefined?null:deletedNames)});
+    if(!error && Array.isArray(data)){ _setContactsBase(data); return {ok:true, merged:data}; }
+    if(error && !/merge_contacts|PGRST202|404/i.test((error.message||'')+(error.code||''))) return {ok:false, error};
+    _contactsRpc=false;   // הפונקציה עוד לא קיימת בשרת — נתיב ישן
+  }
+  const rows=[{key:'contacts',value:JSON.stringify(list)}];
+  if(deletedNames!==undefined) rows.push({key:'deleted_contacts',value:JSON.stringify(deletedNames)});
+  const {error}=await sb.from('app_meta').upsert(rows);
+  if(error) return {ok:false, error};
+  _setContactsBase(list); return {ok:true, merged:list};
+}
+
 async function persistContactsState(newContacts, newDeleted){
   if(!sb){
-    // מצב מקומי בלבד — עדכן זיכרון + localStorage
     contacts = newContacts;
     if(newDeleted!==undefined) window._deletedContactNames = newDeleted;
     try{ localStorage.setItem('contacts_v1', JSON.stringify(newContacts)); }catch(e){}
     return true;
   }
   try{
-    const rows=[{key:'contacts',value:JSON.stringify(newContacts)}];
-    if(newDeleted!==undefined) rows.push({key:'deleted_contacts',value:JSON.stringify(newDeleted)});
-    const { error } = await sb.from('app_meta').upsert(rows);
-    if(error){
-      setSyncStatus('err','⚠️ שמירת אנשי קשר נכשלה');
-      return false;
-    }
-    // הצלחה — עכשיו עדכן זיכרון ו-localStorage
-    contacts=newContacts;
+    const r=await _mergeContactsRemote(newContacts, newDeleted);
+    if(!r.ok){ setSyncStatus('err','⚠️ שמירת אנשי קשר נכשלה'); return false; }
+    // הצלחה — הרשימה הממוזגת מהשרת (כולל שינויים ממכשיר אחר)
+    contacts=r.merged;
     if(newDeleted!==undefined) window._deletedContactNames=newDeleted;
-    try{ localStorage.setItem('contacts_v1', JSON.stringify(newContacts)); }catch(e){}
-    setSyncStatus('ok','☁️ נשמר');
+    try{ localStorage.setItem('contacts_v1', JSON.stringify(contacts)); }catch(e){}
+    _callerCache=null;
+    _reflectPendingStatus();
     return true;
   }catch(e){
     setSyncStatus('err','⚠️ שמירת אנשי קשר נכשלה');
@@ -6369,16 +6617,17 @@ async function persistContactsState(newContacts, newDeleted){
 }
 
 async function saveContacts(){
-  // שמור מקומית תמיד (גיבוי)
   try{ localStorage.setItem('contacts_v1', JSON.stringify(contacts)); }catch(e){}
   if(!sb) return false;
   try{
-    const { error } = await sb.from('app_meta').upsert([{key:'contacts',value:JSON.stringify(contacts)}]);
-    if(error){
+    const r=await _mergeContactsRemote(contacts, undefined);
+    if(!r.ok){
       setSyncStatus('err','⚠️ שמירת אנשי קשר נכשלה');
-      showSaveError('שמירת אנשי הקשר בענן נכשלה: ' + (error.message||'שגיאת שרת') + '. הנתונים נשמרו מקומית.');
+      showSaveError('שמירת אנשי הקשר בענן נכשלה: ' + ((r.error&&r.error.message)||'שגיאת שרת') + '. הנתונים נשמרו מקומית.');
       return false;
     }
+    contacts=r.merged; _callerCache=null;
+    try{ localStorage.setItem('contacts_v1', JSON.stringify(contacts)); }catch(e){}
     return true;
   }catch(e){
     setSyncStatus('err','⚠️ שמירת אנשי קשר נכשלה');
@@ -6410,7 +6659,9 @@ function renderContacts(){
       <div class="contact-info">
         <div class="contact-name">${escHtml(c.name)}
           ${leadsCount?`<span class="contact-leads-badge">${leadsCount===1?'ליד אחד':leadsCount+' לידים'}</span>`:''}
-        ${_mergedTo?`<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:2px">הלידים נספרים תחת ${escHtml(_mergedTo)} — ייתכן שזה איש קשר כפול</div>`:''}</div>
+        ${_mergedTo?`<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:2px">הלידים נספרים תחת ${escHtml(_mergedTo)} (אושר) — ייתכן שזה איש קשר כפול</div>`
+      :(()=>{ const s=callerSuggestions().find(x=>x.type==='merge'&&x.raw===c.name);
+         return s?`<div style="font-size:11px;font-weight:600;color:#b45309;margin-top:2px">💡 ייתכן שזה ${escHtml(s.to)} — <a href="#" onclick="openCallerReview();return false">לבדיקה</a></div>`:''; })()}</div>
         <div class="contact-meta">
           ${c.phone?`<span>📱 <a href="tel:${escHtml(c.phone)}" style="color:inherit;text-decoration:none">${escHtml(c.phone)}</a></span>`:''}
           ${c.email?`<span>📧 <a href="mailto:${escHtml(c.email)}" style="color:inherit;text-decoration:none">${escHtml(c.email)}</a></span>`:''}
@@ -6483,7 +6734,7 @@ async function _saveContactInner(){
     }
     const oldName=c.name;
     // עותק מוצע — לא נוגעים במערך הפעיל עד שהשרת מאשר
-    const nextContacts=contacts.map(x=> x.id===editingContactId ? {...x, ...data} : x);
+    let nextContacts=contacts.map(x=> x.id===editingContactId ? {...x, ...data} : x);
     const nextDeleted=(window._deletedContactNames||[]);
     const linkedIds=leads.filter(l=>l.name===oldName).map(l=>l.id);
 
@@ -6502,15 +6753,19 @@ async function _saveContactInner(){
         }
         // שלב ב: פעולה אטומית אחת בשרת
         try{
-          const { data:rows, error } = await sb.rpc('rename_contact_and_leads',{
-            p_contacts: nextContacts,
-            p_deleted:  nextDeleted,
-            p_old_name: oldName,
-            p_new_name: data.name,
-            p_new_phone: data.phone,
-            p_new_email: data.email
+          const _d=_contactsDiff(nextContacts);
+          let { data:rows, error } = await sb.rpc('rename_contact_and_leads_v2',{
+            p_upserts: _d.ups, p_deleted_ids: _d.del, p_deleted_names: nextDeleted,
+            p_old_name: oldName, p_new_name: data.name, p_new_phone: data.phone, p_new_email: data.email
           });
-          if(error) rpcErr=error; else { rpcOk=true; rpcRows=rows; }
+          if(error && /rename_contact_and_leads_v2|PGRST202|404/i.test((error.message||'')+(error.code||''))){
+            ({ data:rows, error } = await sb.rpc('rename_contact_and_leads',{
+              p_contacts: nextContacts, p_deleted: nextDeleted, p_old_name: oldName,
+              p_new_name: data.name, p_new_phone: data.phone, p_new_email: data.email }));
+          }
+          if(error) rpcErr=error;
+          else { rpcOk=true; rpcRows=(rows||[]).filter(r=>r.lead_id!=null);
+                 const _m=(rows||[]).find(r=>Array.isArray(r.contacts)); if(_m){ nextContacts=_m.contacts; } }
         }catch(e){ rpcErr=e; }
       });
 
@@ -6527,7 +6782,7 @@ async function _saveContactInner(){
       }
 
       // ── שלב ג: רק אחרי הצלחה — עדכן זיכרון ו-localStorage ──
-      contacts=nextContacts;
+      contacts=nextContacts; _setContactsBase(contacts); _callerCache=null;
       window._deletedContactNames=nextDeleted;
       try{ localStorage.setItem('contacts_v1', JSON.stringify(contacts)); }catch(e){}
       leads.forEach(l=>{ if(l.name===oldName){ l.name=data.name; l.phone=data.phone; l.email=data.email; } });
@@ -6756,6 +7011,14 @@ async function deleteDupMarked(){
 
   toast(`⏳ מוחק ${toDelete.length} לידים...`);
   const succeeded=new Set(), failed=[];
+  await _withWriteLock(async()=>{
+  const _ps = saveData._ps || (saveData._ps = new Set());
+  if(sb && _ps.size>0){
+    let flushed=false; try{ flushed=await _flushAllUnlocked(); }catch(e){ flushed=false; }
+    if(!flushed){ showSaveError('לא ניתן למחוק כרגע: יש שינויים שטרם נשמרו בענן והסנכרון נכשל. שום דבר לא נמחק.'); toDelete.forEach(id=>failed.push(id)); return; }
+  }
+  const _obPrev={}; toDelete.forEach(id=>{ _obPrev[id]=_outbox[id]||null; _tombAdd(id); delete _outbox[id]; _ps.delete(id); });
+  bumpLocalRev(); _persistOutbox();
 
   if(sb){
     // מחיקה עם await + טיפול בשגיאה לכל ליד
@@ -6769,6 +7032,9 @@ async function deleteDupMarked(){
   } else {
     toDelete.forEach(id=>succeeded.add(id));
   }
+  succeeded.forEach(id=>_tombDone(id));
+  failed.forEach(id=>{ _tombDrop(id); if(_obPrev[id]){ _outbox[id]=_obPrev[id]; _ps.add(id); } });
+  _persistOutbox();
 
   // מסירים מהממשק רק את מה שבאמת נמחק בענן
   if(succeeded.size){
@@ -6776,15 +7042,9 @@ async function deleteDupMarked(){
     const _deleted=leads.filter(l=>succeeded.has(l.id));
     _deleted.forEach(l=>{ logLeadAudit(l.id,'deleted',l,'deleteDupMarked'); });
     leads = leads.filter(l=>!succeeded.has(l.id));
-    // ניקוי תור השמירה והגיבוי המקומי
-    if(saveData._ps) succeeded.forEach(id=>saveData._ps.delete(id));
-    try{
-      const q=JSON.parse(localStorage.getItem('pendingSaveQueue')||'{}');
-      const qids=(Array.isArray(q)?q:(q.ids||[])).filter(x=>!succeeded.has(x));
-      localStorage.setItem('pendingSaveQueue',JSON.stringify({ids:qids,ts:Date.now()}));
-      localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId}));
-    }catch(e){}
+    try{ localStorage.setItem(STORAGE_KEY,JSON.stringify({leads,nextId})); }catch(e){}
   }
+  });   // סוף _withWriteLock
 
   // עדכון קבוצות הכפולים
   _dupGroups = _dupGroups.map(g=>g.filter(id=>!succeeded.has(id))).filter(g=>g.length>1);
@@ -7205,7 +7465,16 @@ function _normAddrKey(street, city){
   return n(street)+'|'+n(city);
 }
 
+let _bulkBusy=false;
 async function bulkImport(){
+  if(_bulkBusy) return;                     // לחיצה כפולה בזמן הקצאת מזהים — מתעלמים
+  _bulkBusy=true;
+  const _btns=[...document.querySelectorAll('#bulkSection button')].filter(b=>/bulkImport/.test(b.getAttribute('onclick')||''));
+  _btns.forEach(b=>b.disabled=true);
+  try{ return await _bulkImportInner(); }
+  finally{ _bulkBusy=false; _btns.forEach(b=>b.disabled=false); }
+}
+async function _bulkImportInner(){
   const raw=document.getElementById('bulk_addresses').value;
   const lines=raw.split('\n').map(l=>l.trim()).filter(Boolean);
   // קלט ריק — אין להקצות מזהה כלל
@@ -7221,6 +7490,8 @@ async function bulkImport(){
     notes:document.getElementById('bulk_notes').value.trim(),
   };
 
+  { const _v=validateLeadInput({address:'x', city:'x', date:window._bulkParams.date, deadline:window._bulkParams.deadline, status:window._bulkParams.status});
+    if(!_v.ok){ toast('⚠️ לא נוצר דבר — שדה לא תקין: '+_v.errors.join(', ')); return; } }
   let skipped=0;
   const cityErrRows=[];
   window._bulkPendingDups=[];
@@ -7232,6 +7503,7 @@ async function bulkImport(){
     const p=parseBulkLine(line);
     if(!p||!p.street){skipped++;return;}
     if(!p.city||!p.city.trim()){ skipped++; cityErrRows.push(li+1); return; }
+    if(!validateLeadInput({address:p.street, city:p.city}).ok){ skipped++; return; }
 
     // 1א. כפילות מול לידים קיימים במערכת
     const dupLead=_findDupLead(p.street,p.city);
@@ -7463,29 +7735,108 @@ async function _dupCancel(){
 // "רותם מוקד ואריאל יוסף" → שני פונים. שם פרטי לבד ("רותם") מאוחד לשם המלא
 // רק כשיש בדיוק שם מלא אחד שמתחיל בו; אם יש כמה ("אמיר כספי", "אמיר שטיינהרץ") — נשאר כמו שהוא.
 let _callerCache=null, _callerStamp=0;
-function _splitCallerRaw(raw){
-  const t=(raw||'').trim().replace(/\s+/g,' ');
-  if(!t) return [];
-  const parts=t.split(/\s+ו(?=[\u0590-\u05FF])/).map(s=>s.trim()).filter(Boolean);
-  return (parts.length>1 && parts.every(p=>p.length>=2)) ? parts : [t];
-}
-function _callerCanon(){
-  if(_callerCache && Date.now()-_callerStamp<4000) return _callerCache;
-  const full=new Set();
-  leads.forEach(l=>_splitCallerRaw(l.name).forEach(p=>{ if(p.includes(' ')) full.add(p); }));
-  const map={}, merged={};
-  leads.forEach(l=>_splitCallerRaw(l.name).forEach(p=>{
-    if(p.includes(' ') || map[p]!==undefined) return;
-    const cands=[...full].filter(f=>f.startsWith(p+' '));
-    map[p] = cands.length===1 ? cands[0] : p;
-    if(cands.length===1) merged[p]=cands[0];
-  }));
-  _callerCache={map,merged}; _callerStamp=Date.now();
-  return _callerCache;
-}
+// ═══ זהות פונים — בלי הסקה אוטומטית (ביקורת df2ce6f, V02) ═══
+//  • ברירת מחדל: השם נספר בדיוק כפי שנכתב.
+//  • ליד משותף מסומן במפורש במפריד " + " ("טל עזיז + רותם מוקד") — נספר לכל אחד.
+//  • המערכת מציעה פיצול/איחוד; רק החלטה שאושרה (שמורה בשרת, app_meta['caller_rules']) מוחלת, וניתנת לביטול.
+window._callerRules=(()=>{ try{ const r=JSON.parse(localStorage.getItem('callerRules_v1')||'null'); return (r&&typeof r==='object')?r:{approved:{},rejected:{}}; }catch(e){ return {approved:{},rejected:{}}; } })();
+function _nm(s){ return (s||'').trim().replace(/\s+/g,' '); }
+function _rules(){ const r=window._callerRules||{}; return {approved:r.approved||{}, rejected:r.rejected||{}}; }
 function callerNames(l){
-  const {map}=_callerCanon();
-  return [...new Set(_splitCallerRaw(l.name).map(p=>map[p]||p))];
+  const raw=_nm(l.name); if(!raw) return [];
+  const {approved}=_rules();
+  let parts = raw.includes('+') ? raw.split('+').map(_nm).filter(Boolean) : [raw];
+  if(parts.length===1 && Array.isArray(approved[raw])) parts=approved[raw].map(_nm).filter(Boolean);
+  parts=parts.map(p=> typeof approved[p]==='string' ? _nm(approved[p]) : p);
+  return [...new Set(parts)];
+}
+// תאימות: מקומות שקוראים ל-_callerCanon מקבלים רק את מה שאושר במפורש
+function _callerCanon(){
+  const {approved}=_rules(), merged={};
+  Object.entries(approved).forEach(([k,v])=>{ if(typeof v==='string') merged[k]=v; });
+  return {map:{}, merged, known:new Set()};
+}
+// הצעות בלבד — לא מוחלות עד אישור
+function callerSuggestions(){
+  const {approved, rejected}=_rules();
+  const known=new Set();
+  leads.forEach(l=>{ const n=_nm(l.name); if(n && !n.includes('+')) known.add(n); });
+  if(typeof contacts!=='undefined') (contacts||[]).forEach(x=>{ const n=_nm(x&&x.name); if(n) known.add(n); });
+  const out=[], count=n=>leads.filter(l=>_nm(l.name)===n).length;
+  const raws=[...new Set(leads.map(l=>_nm(l.name)).filter(Boolean))];
+  raws.forEach(raw=>{
+    if(raw.includes('+') || approved[raw]!==undefined || rejected[raw]) return;
+    const parts=raw.split(/\s+ו(?=[\u0590-\u05FF])/).map(_nm).filter(Boolean);
+    if(parts.length>1 && parts.every(p=>known.has(p))) out.push({type:'split', raw, parts, n:count(raw)});
+  });
+  const fulls=[...known].filter(n=>n.includes(' '));
+  raws.forEach(raw=>{
+    if(raw.includes(' ') || approved[raw]!==undefined || rejected[raw]) return;
+    const cands=fulls.filter(f=>f.startsWith(raw+' '));
+    if(cands.length===1) out.push({type:'merge', raw, to:cands[0], n:count(raw)});
+  });
+  return out;
+}
+async function setCallerRule(sect, key, val){
+  const set={}, unset={};
+  if(val===undefined){ unset[sect]=[key]; } else { set[sect]={[key]:val}; }
+  // עדכון מקומי מיידי
+  const r=_rules(); if(val===undefined) delete r[sect][key]; else r[sect][key]=val;
+  window._callerRules=r;
+  try{ localStorage.setItem('callerRules_v1', JSON.stringify(r)); }catch(e){}
+  if(sb){
+    try{
+      const {data, error}=await sb.rpc('merge_caller_rules',{p_set:set, p_unset:unset});
+      if(error) throw error;
+      if(data && typeof data==='object'){ window._callerRules=data; try{ localStorage.setItem('callerRules_v1', JSON.stringify(data)); }catch(e){} }
+    }catch(e){ showSaveError('שמירת ההחלטה על שמות הפונים נכשלה — נשמרה במכשיר זה בלבד. '+(e.message||'')); }
+  }
+  _callerCache=null; try{ populateCallerFilter(); }catch(e){}
+  try{ renderDash(); }catch(e){} try{ if(typeof renderContacts==='function') renderContacts(); }catch(e){}
+  try{ refresh(); }catch(e){}
+  if(document.getElementById('_callerReview')) openCallerReview();
+}
+async function loadCallerRules(){
+  if(!sb) return;
+  try{
+    const {data, error}=await sb.from('app_meta').select('value').eq('key','caller_rules').maybeSingle();
+    if(error) return;
+    const r=data&&data.value?JSON.parse(data.value):{approved:{},rejected:{}};
+    window._callerRules=r; try{ localStorage.setItem('callerRules_v1', JSON.stringify(r)); }catch(e){}
+    _callerCache=null;
+  }catch(e){}
+}
+function openCallerReview(){
+  document.getElementById('_callerReview')?.remove();
+  const sug=callerSuggestions(), {approved}=_rules();
+  const m=document.createElement('div'); m.id='_callerReview';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:650;display:flex;align-items:center;justify-content:center;padding:14px';
+  m.addEventListener('click',e=>{ if(e.target===m) m.remove(); });
+  const btn=(label,cls,act)=>`<button type="button" class="btn ${cls}" style="font-size:11.5px;padding:5px 10px" data-act="${escHtml(act)}">${label}</button>`;
+  const rowS=s=>`<div class="cr-row"><div class="cr-txt">${s.type==='split'
+      ?`<b>${escHtml(s.raw)}</b> <span>(${s.n})</span><br>לפצל ל: ${s.parts.map(escHtml).join(' + ')}`
+      :`<b>${escHtml(s.raw)}</b> <span>(${s.n})</span><br>לאחד עם: ${escHtml(s.to)}`}</div>
+      <div class="cr-act">${btn('אשר','btn-save','approve')}${btn('דחה','','reject')}</div></div>`;
+  const appr=Object.entries(approved);
+  m.innerHTML=`<div class="form-card" style="width:min(560px,96vw);max-height:88vh;overflow-y:auto" role="dialog" aria-modal="true">
+    <div class="form-title">👤 בדיקת שמות פונים</div>
+    <div style="font-size:12px;color:var(--text2);margin:-4px 0 12px;line-height:1.55">
+      המערכת לא מאחדת ולא מפצלת שמות לבד. ליד משותף אפשר לסמן ישירות בשם הפונה עם " + " (למשל: טל עזיז + רותם מוקד).
+      כאן הצעות שזוהו — ההחלטה שלך, ונשמרת לכל המכשירים.</div>
+    <div style="font-weight:800;font-size:13px;margin-bottom:6px">הצעות (${sug.length})</div>
+    ${sug.length?sug.map((s,i)=>`<div data-sug="${i}">${rowS(s)}</div>`).join(''):'<div style="font-size:12px;color:var(--text2);margin-bottom:10px">אין הצעות פתוחות</div>'}
+    <div style="font-weight:800;font-size:13px;margin:14px 0 6px">החלטות שאושרו (${appr.length})</div>
+    ${appr.length?appr.map(([k,v])=>`<div class="cr-row" data-appr="${escHtml(k)}"><div class="cr-txt"><b>${escHtml(k)}</b><br>${Array.isArray(v)?'מפוצל ל: '+v.map(escHtml).join(' + '):'מאוחד עם: '+escHtml(v)}</div>
+        <div class="cr-act">${btn('בטל','','undo')}</div></div>`).join(''):'<div style="font-size:12px;color:var(--text2)">אין</div>'}
+    <div class="form-actions"><button class="btn btn-cancel" onclick="document.getElementById('_callerReview').remove()">סגור</button></div>
+  </div>`;
+  m.querySelectorAll('[data-sug]').forEach(el=>{ const s=sug[+el.dataset.sug];
+    el.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.act==='approve') setCallerRule('approved', s.raw, s.type==='split'?s.parts:s.to);
+      else setCallerRule('rejected', s.raw, true);
+    })); });
+  m.querySelectorAll('[data-appr]').forEach(el=>{ el.querySelector('button').addEventListener('click',()=>setCallerRule('approved', el.dataset.appr, undefined)); });
+  document.body.appendChild(m);
 }
 
 function populateCallerFilter(){
@@ -7820,6 +8171,7 @@ function bsFind(){
 }
 function bsApply(){
   const newStatus=document.getElementById('bsStatus').value;
+  if(!STATUS_DEFINITIONS.some(d=>d.name===newStatus)){ toast('⚠️ יש לבחור סטטוס תקין — לא בוצע שינוי'); return; }
   const ids=[];
   const now=new Date();
   const ts=now.toLocaleDateString('he-IL')+' '+now.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
@@ -7835,8 +8187,12 @@ function bsApply(){
     if(l.status!==newStatus){
       if(!l.history) l.history=[];
       l.history.push({ts, iso:now.toISOString(), changes:[{field:'סטטוס',from:l.status,to:newStatus}]});
+      _onStatusChanged(l, l.status, newStatus);
       l.status=newStatus;
       l.statusChangedAt=today;
+      // כמו בעריכה ובשינוי מהשורה: סיבה/חברה זוכה שאינן תקפות לסטטוס החדש מתנקות; המתחרה נשמר
+      if(newStatus!==IRRELEVANT_STATUS){ l.irrelReason=''; l.irrelReasonNote=''; }
+      if(newStatus!==WON_STATUS) l.winCompany='';
       changedAny=true;
     }
     // אדריכל — מוזן גם אם הליד כבר בסטטוס היעד

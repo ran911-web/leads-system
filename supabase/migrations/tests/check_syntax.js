@@ -49,6 +49,16 @@ for (const ch of main) { if (ch === '{') depth++; else if (ch === '}') depth--; 
 ok('סוגריים מסולסלים מאוזנים', depth === 0, '(depth=' + depth + ')');
 ok('backticks זוגיים', (main.split('`').length - 1) % 2 === 0);
 
+// ── 2ב. איזון סוגריים בגיליון הסגנונות הראשי ──
+// סוגר יתום ב-CSS גורם לדפדפן להתעלם בשקט מהכלל שאחריו (כך נשבר פעם הסתרת ה-KPI)
+{
+  const m = html.match(/<style>([\s\S]*?)<\/style>/);
+  const css = (m ? m[1] : '').replace(/\/\*[\s\S]*?\*\//g, '');
+  let d = 0, orphan = 0;
+  for (const ch of css) { if (ch === '{') d++; else if (ch === '}') { d--; if (d < 0) { orphan++; d = 0; } } }
+  ok('CSS: סוגריים מאוזנים ואין סוגר יתום', d === 0 && orphan === 0, '(פתוחים: ' + d + ', יתומים: ' + orphan + ')');
+}
+
 // ── 3. מזהי HTML ──
 const body = html
   .replace(/<script[\s\S]*?<\/script>/g, '')
