@@ -318,6 +318,28 @@ thead th.sorted-asc,thead th.sorted-desc{background:var(--blue);}
 .contact-name{font-weight:700;font-size:14px;color:var(--navy);}
 .contact-meta{font-size:12px;color:var(--text2);margin-top:2px;display:flex;gap:12px;flex-wrap:wrap;}
 .contact-actions{display:flex;gap:6px;flex-shrink:0;}
+.org-stats{display:flex;flex-wrap:wrap;gap:6px;margin-top:7px;}
+.org-stat{font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:#f1f5f9;color:var(--text2);white-space:nowrap;}
+.org-stat b{color:var(--navy);font-weight:800;}
+.org-stat.won{background:#f0fdf4;color:#15803d;} .org-stat.won b{color:#15803d;}
+.org-stat.act{background:#eff6ff;color:#1d4ed8;} .org-stat.act b{color:#1d4ed8;}
+.org-stat.quiet{background:#fff7ed;color:#9a3412;} .org-stat.quiet b{color:#9a3412;}
+.org-link{font-family:inherit;font-size:11px;font-weight:700;color:var(--blue);background:none;border:none;padding:2px 4px;cursor:pointer;text-decoration:underline;}
+.org-quiet-box{background:#fff7ed;border:1.5px solid #fed7aa;border-radius:12px;padding:12px 14px;margin-bottom:14px;}
+.org-quiet-box h4{margin:0 0 4px;font-size:13.5px;color:#9a3412;font-weight:800;display:flex;align-items:center;gap:7px;}
+.org-quiet-box p{margin:0 0 9px;font-size:11.5px;color:#9a3412;opacity:.85;}
+.org-quiet-list{display:flex;flex-wrap:wrap;gap:6px;}
+.org-quiet-chip{font-family:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:16px;cursor:pointer;
+  background:#fff;border:1.5px solid #fdba74;color:#9a3412;}
+.org-quiet-chip span{font-weight:600;opacity:.75;margin-right:4px;}
+.org-quiet-chip:hover{background:#ffedd5;}
+@media(max-width:640px){ #contactSort{width:100%;} .org-quiet-chip{min-height:34px;} }
+.comp-suggest{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;align-items:center;}
+.comp-suggest .cs-lbl{font-size:11px;color:var(--text2);font-weight:700;margin-left:2px;}
+.comp-sug{font-family:inherit;font-size:11.5px;font-weight:700;padding:3px 9px;border-radius:14px;cursor:pointer;
+  background:var(--white);color:var(--text2);border:1px dashed #cbd5e1;}
+.comp-sug:hover{border-color:#fca5a5;color:#b91c1c;background:#fef2f2;}
+@media(max-width:640px){ .comp-sug{min-height:32px;} }
 .contact-leads-badge{background:var(--blue-light);color:var(--blue);font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;}
 
 /* ── BOTTOM NAV ── */
@@ -648,15 +670,13 @@ body.tab-not-leads .main{padding-bottom:8px!important;}
 .kc-blue {--kc:#2563eb;--kc-bg:#eff6ff;--kc-ink:#1e3a8a;}
 .kc-green{--kc:#16a34a;--kc-bg:#f0fdf4;--kc-ink:#15803d;}
 .kc-gold {--kc:#d97706;--kc-bg:#fffbeb;--kc-ink:#b45309;}
-.kc-main{--kc:transparent;cursor:pointer;border:none;color:#fff;
-  background:radial-gradient(120% 140% at 100% 0%,#2d4f95 0%,#1a2f5e 55%,#142548 100%);
-  box-shadow:0 6px 20px rgba(26,47,94,.28);transition:transform .15s,box-shadow .15s;}
-.kc-main:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(26,47,94,.34);}
-.kc-main:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
-.kc-main .kc-ico{background:rgba(255,255,255,.14);}
-.kc-main .kc-val{color:#fff;font-size:38px;}
-.kc-main .kc-lbl{color:#fff;}
-.kc-main .kc-sub{color:rgba(255,255,255,.72);}
+/* 14. סגנון אחיד לכל הכרטיסים: רקע לבן, פס עליון בצבע, אייקון קו. הדגש — רק במספר של הלידים הפעילים. */
+.kc-main{--kc:var(--navy);--kc-bg:#eef2fa;--kc-ink:var(--navy);}
+.kc-main::before{height:5px;}
+.kc-main .kc-val{font-size:40px;}
+button.kc{cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s;}
+button.kc:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(20,40,80,.12);border-color:#c7d2e6;}
+button.kc:focus-visible{outline:3px solid var(--accent);outline-offset:2px;}
 .kc-ring{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:64px;height:64px;}
 .kc-gold{padding-left:92px;}
 @media(max-width:1100px) and (min-width:641px){
@@ -670,9 +690,11 @@ body.tab-not-leads .main{padding-bottom:8px!important;}
   .kc-gold{padding-left:11px;}
   .kc-val{font-size:17px;letter-spacing:0;order:2;}
   .kc-lbl{font-size:11.5px;margin:0;color:var(--text2);order:1;}
-  .kc-main{grid-row:1 / span 3;flex-direction:column;justify-content:center;gap:2px;padding:12px 8px;border-radius:14px;}
-  .kc-main .kc-val{font-size:32px;order:0;}
-  .kc-main .kc-lbl{font-size:12px;color:rgba(255,255,255,.85);order:1;}
+  .kc-main{grid-row:1 / span 3;flex-direction:column;justify-content:center;gap:2px;padding:12px 8px;border-radius:14px;
+    border:1.5px solid #c7d2e6;box-shadow:0 2px 8px rgba(26,47,94,.08);}
+  .kc-main::before{display:block;height:4px;}
+  .kc-main .kc-val{font-size:34px;order:0;}
+  .kc-main .kc-lbl{font-size:12px;color:var(--navy);order:1;}
 }
 
 /* מספר לחיץ בכרטיס הסיבות */
@@ -710,6 +732,18 @@ body.tab-not-leads #kpiGrid{display:none!important;}
 @media(max-width:640px){ .imp-opt{font-size:13px;padding:9px 6px;} .imp-opt span{font-size:10px;} }
 .metric-def{font-size:10.5px;font-weight:600;color:var(--text2);margin:-6px 0 10px;line-height:1.4;}
 .cr-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);}.cr-txt{flex:1;min-width:0;font-size:12.5px;line-height:1.5}.cr-txt span{color:var(--text2);font-size:11px}.cr-act{display:flex;gap:6px;flex:none}
+
+/* ── אייקוני קו (13) ── */
+svg.ico{width:1.05em;height:1.05em;vertical-align:-0.16em;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.dash-card h3 svg.ico{color:var(--blue);margin-left:7px;width:17px;height:17px;vertical-align:-3px;}
+.tab svg.ico{margin-left:6px;opacity:.85;width:15px;height:15px;vertical-align:-2px;}
+.tab.active svg.ico{opacity:1;}
+.subtab svg.ico{margin-left:5px;width:15px;height:15px;vertical-align:-2px;}
+.bnav-icon svg.ico{width:22px;height:22px;vertical-align:0;}
+.attn-ico svg.ico{width:20px;height:20px;vertical-align:-4px;}
+.sec-title svg.ico{color:var(--blue);margin-left:7px;}
+.org-quiet-box h4 svg.ico{width:16px;height:16px;}
+.kc-ico svg.ico{width:24px;height:24px;vertical-align:0;color:var(--kc,var(--blue));stroke-width:2.1;}
 </style>
 </head>
 <body>
@@ -964,15 +998,22 @@ body.tab-not-leads #kpiGrid{display:none!important;}
   <div class="contacts-section" id="contactsSection" role="tabpanel" aria-labelledby="tab-contacts" tabindex="0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px">
       <div>
-        <div style="font-size:16px;font-weight:800;color:var(--navy)">👤 מאגר פונים</div>
+        <div class="sec-title" style="font-size:16px;font-weight:800;color:var(--navy)">👤 מאגר פונים</div>
         <div style="font-size:12px;color:var(--text2);margin-top:2px" id="contactsCount"></div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap">
         <input type="text" id="contactSearch" placeholder="חיפוש פונה..." oninput="renderContacts()"
           style="padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--r-sm);font-family:inherit;font-size:13px;outline:none;min-width:180px">
+        <select id="contactSort" class="filter-select" onchange="_saveContactSort();renderContacts()" aria-label="מיון הפונים" style="min-width:0;flex:none">
+          <option value="leads">מיון: הכי הרבה לידים</option>
+          <option value="recent">מיון: ליד אחרון</option>
+          <option value="quiet">מיון: שקטים הכי הרבה זמן</option>
+          <option value="name">מיון: שם</option>
+        </select>
         <button class="btn btn-primary" onclick="openContactForm()">＋ פונה חדש</button>
       </div>
     </div>
+    <div id="orgQuiet" data-sensitive></div>
     <div id="contactsList" data-sensitive></div>
   </div>
 
@@ -1242,9 +1283,11 @@ body.tab-not-leads #kpiGrid{display:none!important;}
             <input type="hidden" id="e_competitor">
             <div id="compChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px"></div>
             <div style="display:flex;gap:7px">
-              <input type="text" id="compInput" placeholder="שם חברה מתחרה — אנטר להוספה" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCompetitor();}">
+              <input type="text" id="compInput" list="compDatalist" autocomplete="off" placeholder="שם חברה מתחרה — אנטר להוספה" style="flex:1" onkeydown="if(event.key==='Enter'){event.preventDefault();addCompetitor();}">
               <button type="button" class="btn btn-ghost" style="flex-shrink:0;padding:8px 14px" onclick="addCompetitor()">＋ הוסף</button>
             </div>
+            <div id="compSuggest" class="comp-suggest"></div>
+            <datalist id="compDatalist"></datalist>
           </div>
         </div>
       </div>
@@ -2666,12 +2709,12 @@ function renderKPI(){
         <span class="kc-lbl">סה״כ לידים</span>
         <span class="kc-sub">${newMonth ? `${newMonth} חדשים החודש` : 'אין חדשים החודש'}</span>
       </div>
-      <div class="kc kc-green">
+      <button type="button" class="kc kc-green" onclick="focusStatus(WON_STATUS)" title="הצג את הזכיות">
         <span class="kc-ico">🏆</span>
         <span class="kc-val">${wins}</span>
         <span class="kc-lbl">זכיות</span>
         <span class="kc-sub">מתוך ${closed} עסקאות שנסגרו</span>
-      </div>
+      </button>
       ${convPct!=null?`<div class="kc kc-gold">
         <svg class="kc-ring" viewBox="0 0 64 64" aria-hidden="true">
           <circle cx="32" cy="32" r="${R}" fill="none" stroke="rgba(180,83,9,.14)" stroke-width="7"/>
@@ -3046,7 +3089,7 @@ function openStatusExtraModal(id, newStatus){
           ? `<select id="_sx_${f.key}" onchange="_sxToggle()"><option value="">— בחר —</option>${
                f.options().map(o=>`<option value="${escHtml(o)}"${(l[f.key]||'')===o?' selected':''}>${escHtml(o)}</option>`).join('')
              }</select>`
-          : `<input type="text" id="_sx_${f.key}" value="${escHtml(l[f.key]||'')}" placeholder="${escHtml(f.placeholder||'')}">`}
+          : `<input type="text" id="_sx_${f.key}" value="${escHtml(l[f.key]||'')}" placeholder="${escHtml(f.placeholder||'')}"${f.key==='competitor'?' list="compDatalist" autocomplete="off"':''}>`}
         <div class="field-err" id="_sxerr_${f.key}" style="display:none;color:var(--red);font-size:11px;margin-top:4px"></div>
       </div>`).join('')}
     <div class="form-actions">
@@ -3056,6 +3099,7 @@ function openStatusExtraModal(id, newStatus){
     </div>
   </div>`;
   document.body.appendChild(m);
+  if(fields.some(f=>f.key==='competitor')) fillCompDatalist();
 
   window._sxEsc = e=>{ if(e.key==='Escape'){ e.preventDefault(); closeStatusExtraModal(); } };
   document.addEventListener('keydown', window._sxEsc);
@@ -3094,7 +3138,8 @@ function confirmStatusExtra(id, newStatus){
     }
     const el=document.getElementById('_sx_'+f.key);
     const err=document.getElementById('_sxerr_'+f.key);
-    const v=(el?el.value:'').trim();
+    let v=(el?el.value:'').trim();
+    if(f.key==='competitor' && v) v=normalizeCompetitorList(v);
     if(err){ err.style.display='none'; err.textContent=''; }
     if(el) el.style.borderColor='';
     if(f.required && !v){
@@ -3913,6 +3958,18 @@ function renderAttentionCard(){
     act:()=>{ window._stagnantFilter=true; focusStatus(null); }
   });
 
+  // מארגנים ששקטו
+  try{
+    const _q=quietOrganizers();
+    if(_q.length) items.push({
+      icon:'🔕', n:_q.length, sev:'orange',
+      text:`מארגנים שהתקררו — אין ליד מהם ${ORG_QUIET_DAYS}+ יום`,
+      sub:_q.slice(0,3).map(s=>s.name).join(', ')+(_q.length>3?' ועוד':''),
+      act:()=>{ const t=document.getElementById('tab-contacts'); if(window.showTab&&t) showTab('contacts',t); else if(t) t.click();
+                const s=document.getElementById('contactSort'); if(s){ s.value='quiet'; _saveContactSort(); } renderContacts(); }
+    });
+  }catch(e){}
+
   // זמן מאז הזכייה האחרונה — מתוארך נכון, לפי winDateOf
   const winDates = leads.filter(l=>l.status===WON_STATUS).map(winDateOf).filter(Boolean).sort((a,b)=>b-a);
   if(winDates.length){
@@ -3939,7 +3996,7 @@ function renderAttentionCard(){
         style="width:100%;display:flex;align-items:center;gap:11px;padding:10px 12px;margin-bottom:7px;
                border-radius:9px;background:${c.bg};border:1.5px solid ${c.bd};cursor:pointer;
                font-family:inherit;text-align:right">
-        <span style="font-size:19px">${it.icon}</span>
+        <span class="attn-ico" style="font-size:19px;color:${c.fg}">${it.icon}</span>
         <span style="font-size:22px;font-weight:900;color:${c.fg};min-width:40px">${it.n}</span>
         <span style="flex:1;min-width:0">
           <span style="display:block;font-weight:700;font-size:12.5px;color:${c.fg}">${escHtml(it.text)}</span>
@@ -5325,10 +5382,12 @@ function renderAnalytics(){
   })()+``;
   // ── מתחרים ────────────────────────────────────────────────────────────
   const compMap={};
+  const _kc={}; knownCompetitors().forEach(x=>{ _kc[_compNorm(x.name)]=x.name; });
   AL.forEach(l=>{
-    const comps=(l.competitor||'').split(',').map(s=>s.trim()).filter(Boolean);
+    const comps=[...new Set((l.competitor||'').split(',').map(s=>s.trim()).filter(Boolean).map(s=>_kc[_compNorm(s)]||s))];
     comps.forEach(c=>{
-      if(!compMap[c])compMap[c]={total:0,lostTo:0,lostUnknown:0,closed:0,won:0};
+      if(!compMap[c])compMap[c]={total:0,lostTo:0,lostUnknown:0,closed:0,won:0,active:0};
+      if(!CLOSED.includes(l.status)) compMap[c].active++;
       compMap[c].total++;
       // "הפסדנו למתחרה" רק כשהסיבה המתועדת היא מעבר למתחרה *וזה המתחרה היחיד שרשום*.
       // כשרשומים כמה — הזוכה לא ידוע: נספר כ"הפסד, זוכה לא ידוע" ולא כהפסד לכל אחד.
@@ -5341,10 +5400,11 @@ function renderAnalytics(){
     });
   });
   const cRows=Object.entries(compMap).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
-  document.getElementById('anCompetitors').innerHTML=`<h3>⚔️ מתחרים בעסקאות</h3>
-    ${cRows.length?`<div style="display:grid;grid-template-columns:minmax(0,1fr) repeat(5,auto);gap:5px 10px;font-size:12px;align-items:center;overflow-x:auto">
+  document.getElementById('anCompetitors').innerHTML=`<h3>⚔️ מול מי אנחנו מתחרים</h3>
+    ${cRows.length?`<div style="display:grid;grid-template-columns:minmax(0,1fr) repeat(6,auto);gap:5px 10px;font-size:12px;align-items:center;overflow-x:auto">
       <div style="font-weight:700;color:var(--text2);font-size:11px">מתחרה</div>
       <div style="font-weight:700;color:var(--text2);font-size:11px">עסקאות</div>
+      <div style="font-weight:700;color:#1d4ed8;font-size:11px" title="לידים פעילים שבהם המתחרה רשום — התחרות שעוד פתוחה">פתוחות מולנו</div>
       <div style="font-weight:700;color:#16a34a;font-size:11px">ניצחנו</div>
       <div style="font-weight:700;color:#dc2626;font-size:11px" title="לידים שסומנו כלא רלוונטיים עם סיבה מתועדת: הלך למתחרה">הפסדנו למתחרה</div>
       <div style="font-weight:700;color:#b45309;font-size:11px" title="הלך למתחרה, אבל רשומים כמה מתחרים — לא ידוע מי זכה">הפסד, זוכה לא ידוע</div>
@@ -5352,6 +5412,7 @@ function renderAnalytics(){
       ${cRows.map(([c,v])=>`
         <div style="font-weight:600">${escHtml(c)}</div>
         <div style="font-weight:700">${v.total}</div>
+        <div style="font-weight:700;color:#1d4ed8">${v.active||'—'}</div>
         <div style="font-weight:700;color:#16a34a">${v.won}</div>
         <div style="font-weight:700;color:#dc2626">${v.lostTo}</div>
         <div style="font-weight:700;color:#b45309">${v.lostUnknown}</div>
@@ -5664,7 +5725,7 @@ function saveEdit(){
   l.architect=document.getElementById('e_architect').value.trim()||'';
   { const _en=document.getElementById('e_notes'); if(_en) l.notes=_en.value.trim(); }
   {const _ci=document.getElementById('compInput');if(_ci&&_ci.value.trim()&&!_compList.includes(_ci.value.trim())){_compList.push(_ci.value.trim());renderCompChips();}}
-  l.competitor=document.getElementById('e_competitor').value.trim()||'';
+  l.competitor=normalizeCompetitorList(document.getElementById('e_competitor').value.trim()||'');
   if(ue) l.units_exist=ue; else delete l.units_exist;
   if(un) l.units_new=un; else delete l.units_new;
   if(ce) l.commerce_exist=ce; else delete l.commerce_exist;
@@ -6635,13 +6696,101 @@ async function saveContacts(){
   }
 }
 
+// ══ כרטיס מארגן: נתונים לכל פונה (לפי callerNames — כולל לידים משותפים ושמות שאוחדו באישור) ══
+const ORG_QUIET_DAYS = 90;   // מארגן "שקט": לא שלח ליד כבר 90 יום
+const ORG_QUIET_MIN  = 2;    // ורק מי ששלח בעבר לפחות 2 לידים (מארגן קבוע, לא פנייה חד-פעמית)
+const ORG_QUIET_MAX  = 365;  // מי ששקט יותר משנה — כבר לא "התקרר לאחרונה"; נשאר במיון "שקטים" במאגר
+const ORG_GENERIC = new Set(['אחר','לא ידוע','ללא','-','—','?']);   // שמות כלליים שאינם מארגן אמיתי
+function organizerStats(){
+  const m={};
+  leads.forEach(l=>{
+    callerNames(l).forEach(n=>{
+      const s=m[n]||(m[n]={name:n,total:0,active:0,won:0,lost:0,last:'',first:''});
+      s.total++;
+      if(l.status===WON_STATUS) s.won++;
+      else if(l.status===IRRELEVANT_STATUS) s.lost++;
+      else s.active++;
+      const d=(l.date||'').slice(0,10);
+      if(/^\d{4}-\d{2}-\d{2}$/.test(d)){ if(!s.last||d>s.last) s.last=d; if(!s.first||d<s.first) s.first=d; }
+    });
+  });
+  Object.values(m).forEach(s=>{ s.sinceLast = s.last ? (daysSince(s.last)||0) : null; });
+  return m;
+}
+function quietOrganizers(stats){
+  stats=stats||organizerStats();
+  return Object.values(stats)
+    .filter(s=>s.total>=ORG_QUIET_MIN && s.sinceLast!=null && s.sinceLast>=ORG_QUIET_DAYS && s.sinceLast<=ORG_QUIET_MAX && !ORG_GENERIC.has(s.name))
+    .sort((a,b)=>b.total-a.total || b.sinceLast-a.sinceLast);
+}
+function _sinceTxt(d){
+  if(d==null) return '';
+  if(d<=0) return 'היום';
+  if(d===1) return 'אתמול';
+  if(d<60) return `לפני ${d} ימים`;
+  const mo=Math.round(d/30);
+  return mo<24 ? `לפני ${mo} חודשים` : `לפני ${Math.round(d/365)} שנים`;
+}
+// הצגת כל הלידים של מארגן ברשימה (כל הסטטוסים)
+function showCallerLeads(name){
+  window._qualityFilter=null; window._stagnantFilter=false; window._cityFilter=null; window._reasonFilter=null;
+  document.getElementById('_qualityBanner')?.remove();
+  const tab=document.getElementById('tab-leads');
+  if(window.showTab && tab) showTab('leads', tab); else if(tab) tab.click();
+  document.getElementById('searchInput').value='';
+  ['filterReply','filterOwner'].forEach(id=>{ const e=document.getElementById(id); if(e) e.value=''; });
+  try{ populateCallerFilter(); }catch(e){}
+  const sel=document.getElementById('filterCaller');
+  if(sel){ if(![...sel.options].some(o=>o.value===name)) sel.appendChild(new Option(name,name)); sel.value=name; }
+  document.querySelectorAll('#statusDropdown .st-opt input[type=checkbox]').forEach(cb=>cb.checked=true);
+  if(typeof updateStatusLabel==='function') updateStatusLabel();
+  currentPage=1;
+  renderTable();
+}
+function _saveContactSort(){ try{ localStorage.setItem('contactSort', document.getElementById('contactSort').value); }catch(e){} }
+function _orgStatsHtml(s){
+  if(!s||!s.total) return `<div class="org-stats"><span class="org-stat">עוד לא שלח לידים</span></div>`;
+  const quiet = s.total>=ORG_QUIET_MIN && s.sinceLast!=null && s.sinceLast>=ORG_QUIET_DAYS && s.sinceLast<=ORG_QUIET_MAX;
+  return `<div class="org-stats">
+      ${s.active?`<span class="org-stat act"><b>${s.active}</b> פעילים</span>`:''}
+      ${s.won?`<span class="org-stat won"><b>${s.won}</b> ${s.won===1?'זכייה':'זכיות'}</span>`:''}
+      ${s.last?`<span class="org-stat${quiet?' quiet':''}" title="${fmtDate(s.last)}">ליד אחרון: <b>${_sinceTxt(s.sinceLast)}</b></span>`:''}
+      <button type="button" class="org-link" data-org="${escHtml(s.name)}" onclick="showCallerLeads(this.dataset.org)">הצג לידים</button>
+    </div>`;
+}
+function renderOrgQuiet(stats){
+  const box=document.getElementById('orgQuiet'); if(!box) return;
+  const q=quietOrganizers(stats);
+  if(!q.length){ box.innerHTML=''; return; }
+  box.innerHTML=`<div class="org-quiet-box">
+    <h4>🔕 ${q.length} מארגנים שהתקררו</h4>
+    <p>שלחו בעבר לפחות ${ORG_QUIET_MIN} לידים, והליד האחרון שלהם הגיע לפני ${ORG_QUIET_DAYS} יום עד שנה. אולי שווה להרים טלפון. לחיצה מציגה את הלידים שלהם.</p>
+    <div class="org-quiet-list">${q.slice(0,12).map(s=>
+      `<button type="button" class="org-quiet-chip" data-org="${escHtml(s.name)}" onclick="showCallerLeads(this.dataset.org)"
+        title="ליד אחרון: ${fmtDate(s.last)}">${escHtml(s.name)}<span>· ${s.total} לידים · ${_sinceTxt(s.sinceLast)}</span></button>`).join('')}
+      ${q.length>12?`<span style="font-size:11.5px;color:#9a3412;align-self:center">ועוד ${q.length-12}</span>`:''}
+    </div></div>`;
+}
+
 function renderContacts(){
   const q=(document.getElementById('contactSearch')?.value||'').toLowerCase();
+  const _ost=organizerStats();
+  renderOrgQuiet(_ost);
+  const _sortSel=document.getElementById('contactSort');
+  if(_sortSel && !_sortSel.dataset.init){ _sortSel.dataset.init='1'; try{ const v=localStorage.getItem('contactSort'); if(v&&[..._sortSel.options].some(o=>o.value===v)) _sortSel.value=v; }catch(e){} }
+  const _sort=_sortSel?_sortSel.value:'name';
+  const _S=c=>_ost[c.name]||{total:0,last:'',sinceLast:null};
+  const _cmp={
+    name:(a,b)=>a.name.localeCompare(b.name,'he'),
+    leads:(a,b)=>_S(b).total-_S(a).total || a.name.localeCompare(b.name,'he'),
+    recent:(a,b)=>(_S(b).last||'').localeCompare(_S(a).last||'') || a.name.localeCompare(b.name,'he'),
+    quiet:(a,b)=>{ const qa=_S(a).total>=ORG_QUIET_MIN?(_S(a).sinceLast??-1):-1, qb=_S(b).total>=ORG_QUIET_MIN?(_S(b).sinceLast??-1):-1; return qb-qa || a.name.localeCompare(b.name,'he'); },
+  }[_sort]||((a,b)=>a.name.localeCompare(b.name,'he'));
   const filtered=contacts.filter(c=>
     !q||c.name.toLowerCase().includes(q)||
     (c.phone||'').includes(q)||(c.email||'').toLowerCase().includes(q)||
     (c.company||'').toLowerCase().includes(q)
-  ).sort((a,b)=>a.name.localeCompare(b.name,'he'));
+  ).sort(_cmp);
 
   document.getElementById('contactsCount').textContent=`${contacts.length} אנשי קשר | ${filtered.length} מוצגים`;
 
@@ -6668,6 +6817,7 @@ function renderContacts(){
           ${c.company?`<span>🏢 ${escHtml(c.company)}</span>`:''}
         </div>
         ${c.notes?`<div style="font-size:11px;color:var(--text2);margin-top:4px">${escHtml(c.notes)}</div>`:''}
+        ${_orgStatsHtml(_ost[c.name])}
       </div>
       <div class="contact-actions">
         ${c.phone?`<button class="btn contact-wa-btn" data-cid="${escHtml(c.id)}" style="padding:4px 8px;font-size:12px;background:#e8fef0;color:#25d366">💬</button>`:''}
@@ -7147,16 +7297,65 @@ function syncCompHidden(){
 function renderCompChips(){
   const box = document.getElementById('compChips');
   if(!box) return;
+  try{ renderCompSuggest(); fillCompDatalist(); }catch(e){}
   box.innerHTML = _compList.map((c,i)=>
     `<span style="display:inline-flex;align-items:center;gap:5px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;border-radius:20px;padding:4px 10px;font-size:12.5px;font-weight:700">⚔️ ${escHtml(c)}<button type="button" onclick="removeCompetitor(${i})" style="background:none;border:none;cursor:pointer;color:#b91c1c;font-size:14px;padding:0;line-height:1;font-weight:900">×</button></span>`
   ).join('');
   syncCompHidden();
 }
-function addCompetitor(){
+// ══ מתחרים — רשימה אחידה ══
+// כל שם מתחרה שכבר תועד הופך להצעה. שם שמוקלד בכתיב שונה (רווחים, "קבוצת", גרשיים, אותיות גדולות)
+// נשמר בכתיב שכבר קיים, כדי שאותו מתחרה לא יתפצל לכמה שורות בניתוח.
+function _compNorm(s){
+  return (s||'').toLowerCase().trim()
+    .replace(/["'״׳\x60]/g,'')
+    .replace(/^(קבוצת|קבוצה|קב\.)\s+/,'')
+    .replace(/\s*בעמ$/,'')
+    .replace(/[\s\-_.]+/g,'');
+}
+function knownCompetitors(){
+  const cnt={}, first={};
+  leads.forEach(l=>(l.competitor||'').split(',').map(s=>s.trim()).filter(Boolean).forEach(n=>{
+    const k=_compNorm(n); if(!k) return;
+    if(!first[k]) first[k]={};
+    first[k][n]=(first[k][n]||0)+1;
+    cnt[k]=(cnt[k]||0)+1;
+  }));
+  // לכל מתחרה — הכתיב הנפוץ ביותר
+  return Object.keys(cnt).sort((a,b)=>cnt[b]-cnt[a] || a.localeCompare(b,'he'))
+    .map(k=>{ const v=first[k]; return {name:Object.keys(v).sort((a,b)=>v[b]-v[a])[0], n:cnt[k]}; });
+}
+function canonCompetitor(v){
+  v=(v||'').trim().replace(/\s+/g,' ');
+  if(!v) return '';
+  const k=_compNorm(v);
+  const hit=knownCompetitors().find(x=>_compNorm(x.name)===k);
+  return hit?hit.name:v;
+}
+function normalizeCompetitorList(str){
+  const out=[];
+  (str||'').split(',').map(canonCompetitor).filter(Boolean).forEach(n=>{ if(!out.some(o=>_compNorm(o)===_compNorm(n))) out.push(n); });
+  return out.join(', ');
+}
+function fillCompDatalist(){
+  const dl=document.getElementById('compDatalist'); if(!dl) return;
+  dl.innerHTML='';
+  knownCompetitors().forEach(x=>dl.appendChild(new Option(x.name)));
+}
+function renderCompSuggest(){
+  const box=document.getElementById('compSuggest'); if(!box) return;
+  const chosen=_compList.map(_compNorm);
+  const sug=knownCompetitors().filter(x=>!chosen.includes(_compNorm(x.name))).slice(0,8);
+  box.innerHTML = sug.length ? `<span class="cs-lbl">מוכרים:</span>`+
+    sug.map(x=>`<button type="button" class="comp-sug" data-n="${escHtml(x.name)}" onclick="addCompetitor(this.dataset.n)" title="תועד ב-${x.n} לידים">＋ ${escHtml(x.name)}</button>`).join('') : '';
+}
+function addCompetitor(name){
   const inp = document.getElementById('compInput');
-  const v = inp.value.trim();
-  if(!v) return;
-  if(_compList.some(c=>c===v)){ toast('⚠️ המתחרה כבר ברשימה'); inp.value=''; return; }
+  const typed = (typeof name==='string') ? name : inp.value.trim();
+  if(!typed) return;
+  const v = canonCompetitor(typed);
+  if(_compList.some(c=>_compNorm(c)===_compNorm(v))){ toast('⚠️ המתחרה כבר ברשימה'); inp.value=''; return; }
+  if(v!==typed.trim()) toast('נוסף בשם הקיים: '+v);
   _compList.push(v);
   inp.value='';
   inp.focus();
@@ -8372,6 +8571,43 @@ function refresh(){
 }
 // ── SAVE TO FILE ──────────────────────────────────────────────────────────
 
+
+// ══ אייקונים אחידים (13) ══════════════════════════════════════════════════
+// האימוג'י בכותרות הכרטיסים, בלשוניות, בניווט התחתון ובכרטיסי ה-KPI מוחלפים באייקוני קו אחידים.
+// ההחלפה נעשית אחרי כל רינדור, ורק בתחילת הכותרת. תוכן ונתונים (למשל שם הסטטוס "זכייה 🏆") לא משתנים.
+const ICO_PATHS = {"trend": "<polyline points=\"22 7 13.5 15.5 8.5 10.5 2 17\"/><polyline points=\"16 7 22 7 22 13\"/>", "bars": "<path d=\"M3 3v18h18\"/><path d=\"M18 17V9\"/><path d=\"M13 17V5\"/><path d=\"M8 17v-3\"/>", "list": "<rect width=\"8\" height=\"4\" x=\"8\" y=\"2\" rx=\"1\"/><path d=\"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2\"/><path d=\"M12 11h4\"/><path d=\"M12 16h4\"/><path d=\"M8 11h.01\"/><path d=\"M8 16h.01\"/>", "download": "<path d=\"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4\"/><polyline points=\"7 10 12 15 17 10\"/><line x1=\"12\" x2=\"12\" y1=\"15\" y2=\"3\"/>", "user": "<path d=\"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2\"/><circle cx=\"12\" cy=\"7\" r=\"4\"/>", "pin": "<path d=\"M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z\"/><circle cx=\"12\" cy=\"10\" r=\"3\"/>", "trophy": "<path d=\"M6 9H4.5a2.5 2.5 0 0 1 0-5H6\"/><path d=\"M18 9h1.5a2.5 2.5 0 0 0 0-5H18\"/><path d=\"M4 22h16\"/><path d=\"M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22\"/><path d=\"M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22\"/><path d=\"M18 2H6v7a6 6 0 0 0 12 0V2Z\"/>", "target": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><circle cx=\"12\" cy=\"12\" r=\"6\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/>", "timer": "<line x1=\"10\" x2=\"14\" y1=\"2\" y2=\"2\"/><line x1=\"12\" x2=\"15\" y1=\"14\" y2=\"11\"/><circle cx=\"12\" cy=\"14\" r=\"8\"/>", "calendar": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><line x1=\"16\" x2=\"16\" y1=\"2\" y2=\"6\"/><line x1=\"8\" x2=\"8\" y1=\"2\" y2=\"6\"/><line x1=\"3\" x2=\"21\" y1=\"10\" y2=\"10\"/>", "compass": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polygon points=\"16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76\"/>", "hourglass": "<path d=\"M5 22h14\"/><path d=\"M5 2h14\"/><path d=\"M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22\"/><path d=\"M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2\"/>", "wrench": "<path d=\"M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z\"/>", "check": "<path d=\"M22 11.08V12a10 10 0 1 1-5.93-9.14\"/><polyline points=\"22 4 12 14.01 9 11.01\"/>", "bell": "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"/><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/>", "belloff": "<path d=\"M8.7 3A6 6 0 0 1 18 8a21.3 21.3 0 0 0 .6 5\"/><path d=\"M17 17H3s3-2 3-9a4.67 4.67 0 0 1 .3-1.7\"/><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/><path d=\"m2 2 20 20\"/>", "map": "<polygon points=\"3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21\"/><line x1=\"9\" x2=\"9\" y1=\"3\" y2=\"18\"/><line x1=\"15\" x2=\"15\" y1=\"6\" y2=\"21\"/>", "building": "<rect width=\"16\" height=\"20\" x=\"4\" y=\"2\" rx=\"2\"/><path d=\"M9 22v-4h6v4\"/><path d=\"M8 6h.01\"/><path d=\"M16 6h.01\"/><path d=\"M12 6h.01\"/><path d=\"M12 10h.01\"/><path d=\"M12 14h.01\"/><path d=\"M16 10h.01\"/><path d=\"M16 14h.01\"/><path d=\"M8 10h.01\"/><path d=\"M8 14h.01\"/>", "landmark": "<line x1=\"3\" x2=\"21\" y1=\"22\" y2=\"22\"/><line x1=\"6\" x2=\"6\" y1=\"18\" y2=\"11\"/><line x1=\"10\" x2=\"10\" y1=\"18\" y2=\"11\"/><line x1=\"14\" x2=\"14\" y1=\"18\" y2=\"11\"/><line x1=\"18\" x2=\"18\" y1=\"18\" y2=\"11\"/><polygon points=\"12 2 20 7 4 7\"/>", "xcircle": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m15 9-6 6\"/><path d=\"m9 9 6 6\"/>", "swords": "<polyline points=\"14.5 17.5 3 6 3 3 6 3 17.5 14.5\"/><line x1=\"13\" x2=\"19\" y1=\"19\" y2=\"13\"/><line x1=\"16\" x2=\"20\" y1=\"16\" y2=\"20\"/><line x1=\"19\" x2=\"21\" y1=\"21\" y2=\"19\"/><polyline points=\"14.5 6.5 18 3 21 3 21 6 17.5 9.5\"/><line x1=\"5\" x2=\"9\" y1=\"14\" y2=\"18\"/><line x1=\"7\" x2=\"4\" y1=\"17\" y2=\"20\"/><line x1=\"3\" x2=\"5\" y1=\"19\" y2=\"21\"/>", "more": "<circle cx=\"12\" cy=\"12\" r=\"1\"/><circle cx=\"19\" cy=\"12\" r=\"1\"/><circle cx=\"5\" cy=\"12\" r=\"1\"/>", "file": "<path d=\"M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z\"/><polyline points=\"14 2 14 8 20 8\"/><line x1=\"16\" x2=\"8\" y1=\"13\" y2=\"13\"/><line x1=\"16\" x2=\"8\" y1=\"17\" y2=\"17\"/>", "pen": "<path d=\"M12 20h9\"/><path d=\"M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z\"/>", "clock": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><polyline points=\"12 6 12 12 16 14\"/>"};
+const ICO_EMOJI = {"📈": "trend", "📊": "bars", "📋": "list", "📥": "download", "👤": "user", "📍": "pin", "🏆": "trophy", "🎯": "target", "⏱": "timer", "📅": "calendar", "📆": "calendar", "🔮": "compass", "⏳": "hourglass", "🔧": "wrench", "🧹": "check", "🔔": "bell", "🔕": "belloff", "🗺": "map", "🏗": "building", "🏢": "building", "🏛": "landmark", "❌": "xcircle", "⚔": "swords", "⋯": "more", "📄": "file", "✋": "pen", "🐢": "clock"};
+const ICO_SEL = '.dash-card h3,.tab,.subtab,.bnav-icon,.kc-ico,.attn-ico,.sec-title,.org-quiet-box h4';
+function _icoSvg(name){
+  const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  s.setAttribute('viewBox','0 0 24 24'); s.setAttribute('class','ico ico-'+name); s.setAttribute('aria-hidden','true');
+  s.innerHTML=ICO_PATHS[name]; return s;
+}
+function _iconizeEl(el){
+  const walker=document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+  let t; while((t=walker.nextNode())){ if(t.nodeValue.trim()) break; }
+  if(!t) return;
+  const txt=t.nodeValue, lead=txt.match(/^\s*/)[0], rest=txt.slice(lead.length);
+  const key=Object.keys(ICO_EMOJI).find(k=>rest.startsWith(k));
+  if(!key) return;
+  let after=rest.slice(key.length).replace(/^\uFE0F/,'');
+  t.nodeValue=after.replace(/^\s+/,' ');
+  if(!after.trim()) t.nodeValue='';
+  t.parentNode.insertBefore(_icoSvg(ICO_EMOJI[key]), t);
+}
+function iconize(root){
+  try{
+    (root||document).querySelectorAll(ICO_SEL).forEach(_iconizeEl);
+    if(root && root.matches && root.matches(ICO_SEL)) _iconizeEl(root);
+  }catch(e){}
+}
+(function(){
+  let pending=false;
+  const run=()=>{ pending=false; iconize(document); };
+  const mo=new MutationObserver(()=>{ if(!pending){ pending=true; requestAnimationFrame(run); } });
+  const start=()=>{ iconize(document); mo.observe(document.body,{childList:true,subtree:true}); };
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start); else start();
+})();
 </script>
 <button class="fab" onclick="openForm()" title="ליד חדש">＋</button>
 
