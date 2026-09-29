@@ -10,7 +10,7 @@
 <meta name="apple-mobile-web-app-title" content="מעקב לידים">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%231a2f5e'/><text y='72' x='50' text-anchor='middle' font-size='60'>🏙️</text></svg>">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://eemepnirijolwbwvokin.supabase.co wss://eemepnirijolwbwvokin.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; worker-src 'self' blob: https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://eemepnirijolwbwvokin.supabase.co wss://eemepnirijolwbwvokin.supabase.co https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
   <meta name="robots" content="noindex,nofollow,noarchive,nosnippet">
   <meta name="referrer" content="no-referrer">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -744,6 +744,49 @@ svg.ico{width:1.05em;height:1.05em;vertical-align:-0.16em;flex:none;fill:none;st
 .sec-title svg.ico{color:var(--blue);margin-left:7px;}
 .org-quiet-box h4 svg.ico{width:16px;height:16px;}
 .kc-ico svg.ico{width:24px;height:24px;vertical-align:0;color:var(--kc,var(--blue));stroke-width:2.1;}
+
+/* ── קליטה מצילום מסך ── */
+.ocr-box{background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;}
+.ocr-btn{background:var(--blue,#2563eb);color:#fff;font-weight:700;padding:8px 14px;flex:none;}
+.ocr-btn:disabled{opacity:.6;cursor:wait;}
+.ocr-hint{font-size:11.5px;color:#1e3a8a;flex:1;min-width:180px;line-height:1.45;}
+.ocr-status{flex-basis:100%;font-size:12.5px;font-weight:700;color:#1e3a8a;padding:7px 10px;border-radius:8px;background:#dbeafe;}
+.ocr-status.ok{background:#fef9c3;color:#854d0e;} .ocr-status.err{background:#fee2e2;color:#991b1b;}
+.ocr-text{flex-basis:100%;font-size:12px;} .ocr-text summary{cursor:pointer;color:#1e3a8a;font-weight:700;}
+.ocr-text textarea,.lr-text textarea{width:100%;min-height:110px;margin-top:6px;font-family:inherit;font-size:12.5px;border:1px solid var(--border);border-radius:8px;padding:8px;box-sizing:border-box;}
+input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!important;border-color:#facc15!important;}
+@media(hover:none){ .ocr-desk{display:none;} }
+.lr-overlay{position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:700;display:flex;align-items:center;justify-content:center;padding:14px;}
+.lr-card{background:var(--white);border-radius:16px;width:min(760px,100%);max-height:92vh;display:flex;flex-direction:column;box-shadow:0 20px 50px rgba(0,0,0,.25);}
+.lr-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--border);}
+.lr-title{font-size:15.5px;font-weight:800;color:var(--navy);}
+.lr-x{background:none;border:none;font-size:20px;cursor:pointer;color:var(--text2);min-width:36px;min-height:36px;}
+.lr-body{overflow-y:auto;padding:14px 18px;}
+.lr-shared{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px 10px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px dashed var(--border);}
+.lr-shared .form-group{margin:0;min-width:0;} .lr-shared .full{grid-column:1/-1;}
+.lr-shared input,.lr-shared select{width:100%;min-width:0;box-sizing:border-box;}
+.lr-shared label{font-size:11.5px;}
+.lr-rows{display:flex;flex-direction:column;gap:8px;}
+.lr-row{display:grid;grid-template-columns:auto 1fr;gap:6px 10px;align-items:center;border:1.5px solid var(--border);border-radius:10px;padding:9px 10px;background:var(--white);}
+.lr-row.dup{border-color:#fdba74;background:#fff7ed;}
+.lr-chk input{width:20px;height:20px;}
+.lr-fields{display:grid;grid-template-columns:2fr 1.3fr 1fr 70px;gap:6px;}
+.lr-fields input,.lr-fields select{width:100%;min-width:0;padding:8px;border:1.5px solid var(--border);border-radius:8px;font-family:inherit;font-size:13.5px;box-sizing:border-box;}
+.lr-dup,.lr-err{grid-column:2;font-size:11.5px;font-weight:700;}
+.lr-dup{color:#9a3412;} .lr-err{color:#b91c1c;}
+.lr-text{margin-top:12px;font-size:12px;} .lr-text summary{cursor:pointer;font-weight:700;color:var(--text2);}
+.lr-foot{display:flex;justify-content:flex-start;gap:8px;padding:12px 18px;border-top:1px solid var(--border);}
+.lr-foot .btn-save:disabled{opacity:.5;}
+@media(max-width:640px){
+  .lr-overlay{padding:0;align-items:flex-end;}
+  .lr-card{border-radius:18px 18px 0 0;max-height:94vh;}
+  .lr-shared{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .lr-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 64px;}
+  .lr-fields .lr-addr{grid-column:1/-1;}
+  .lr-body{padding:12px;}
+  .lr-fields input,.lr-fields select{font-size:16px;}
+  .lr-foot .btn{flex:1;min-height:44px;}
+}
 </style>
 </head>
 <body>
@@ -1108,6 +1151,13 @@ svg.ico{width:1.05em;height:1.05em;vertical-align:-0.16em;flex:none;fill:none;st
 <div class="form-overlay" id="formOverlay" onclick="closeFormOutside(event)">
   <div class="form-card">
     <div class="form-title">➕ הוספת ליד חדש</div>
+    <div id="ocrBox" class="ocr-box">
+      <button type="button" class="btn ocr-btn" id="ocrBtn" onclick="document.getElementById('ocrFile').click()">📷 מצילום מסך</button>
+      <span class="ocr-hint">מייל, וואטסאפ או מסמך — המערכת תזהה כתובת, עיר, מארגן ומועד. <span class="ocr-desk">אפשר גם להדביק תמונה (Ctrl+V).</span></span>
+      <input type="file" id="ocrFile" accept="image/*" hidden onchange="ocrFromFile(this.files[0]); this.value=''">
+      <div id="ocrStatus" class="ocr-status" style="display:none" role="status" aria-live="polite"></div>
+      <details id="ocrTextWrap" class="ocr-text" style="display:none"><summary>הטקסט שזוהה</summary><textarea id="ocrText" readonly></textarea></details>
+    </div>
     <div id="waPasteBox" style="background:#e8fef0;border:1.5px solid #25d366;border-radius:10px;padding:12px 14px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleWaPaste()">
         <span style="font-weight:700;font-size:13px;color:#0a7d3a">💬 הדבק הודעה מוואטספ</span>
@@ -4659,12 +4709,27 @@ async function checkSharedContent(){
       }
     }catch(e){}
   }
-  if(!shared) return;
+  // צילום מסך ששותף לאפליקציה (שיתוף תמונה מהגלריה / מוואטסאפ / מהמייל)
+  let sharedImg=null;
+  if(isShared){
+    try{
+      const cache=await caches.open('share-temp');
+      const r=await cache.match('/leads-system/__shared_img');
+      if(r){
+        const ts=+(r.headers.get('X-Shared-Ts')||0);
+        const blob=await r.blob();
+        await cache.delete('/leads-system/__shared_img');
+        if(blob && blob.size && Date.now()-ts < 5*60*1000) sharedImg=new File([blob],'shared-image',{type:blob.type||'image/png'});
+      }
+    }catch(e){}
+  }
+  if(!shared && !sharedImg) return;
   // אל תטען תוכן משותף לפני אימות המשתמש
   const tryOpen=()=>{
     const login=document.getElementById('loginScreen');
     if(window.openForm && login && login.style.display==='none'){
       openForm();
+      if(sharedImg){ setTimeout(()=>ocrFromFile(sharedImg),300); return; }
       setTimeout(()=>{
         const wpi=document.getElementById('waPasteInput');
         if(wpi){
@@ -4685,6 +4750,484 @@ function toggleWaPaste(){
   if(c.style.display==='none'){c.style.display='block';t.textContent='▲ סגור';document.getElementById('waPasteInput').focus();}
   else{c.style.display='none';t.textContent='▼ פתח';}
 }
+// ══ חילוץ לידים מטקסט חופשי (צילום מסך / הודעה מודבקת) ══════════════════════
+// מחזיר {leads:[{address,city,units,type}], shared:{name,phone,email,deadline,date,source,type,notes}, text}
+// ctx: {cities:[...שמות ערים], organizers:[...שמות מארגנים קיימים], today:'YYYY-MM-DD', cityPref:{key:'כתיב מועדף'}}
+function parseLeadsText(raw, ctx){
+  ctx=ctx||{};
+  const HEB='\u0590-\u05ff';
+  const isHebCh=ch=>!!ch && /[\u0590-\u05ff]/.test(ch);
+  const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+  // ── ניקוי: סימני כיווניות, גרשיים עבריים, מקפים ארוכים ──
+  let text=String(raw||'')
+    .replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g,'')
+    .replace(/[״\u201c\u201d]/g,'"').replace(/[׳\u2018\u2019\x60]/g,"'")
+    .replace(/[\u2013\u2014\u2212]/g,'-')
+    .replace(/\r/g,'');
+  // שורות רעש של זיהוי טקסט: מעט אותיות, הרבה סימנים
+  const lines=text.split('\n').map(l=>l.replace(/[ \t]+/g,' ').trim()).filter(l=>{
+    if(!l) return false;
+    const letters=(l.match(/[A-Za-z\u0590-\u05ff0-9]/g)||[]).length;
+    return letters>=3 && letters/l.length>=0.5;
+  });
+  text=lines.join('\n');
+  const out={leads:[], shared:{name:'',phone:'',email:'',deadline:'',date:'',source:'',type:'',notes:''}, text};
+  if(!text) return out;
+
+  // ── ערים: כתיבים חלופיים (קרית/קריית, מקף/רווח) → כתיב אחד ──
+  const cKey=s=>String(s||'').replace(/קריית/g,'קרית').replace(/[-\s]+/g,' ').trim();
+  const canon={};
+  (ctx.cities||[]).forEach(c=>{ const k=cKey(c); if(k && !canon[k]) canon[k]=c; });
+  Object.entries(ctx.cityPref||{}).forEach(([k,v])=>{ canon[cKey(k)]=v; });
+  const variants=[];
+  Object.entries(canon).forEach(([k,c])=>{
+    const vs=new Set([c,k,k.replace(/קרית/g,'קריית'),k.replace(/ /g,'-')]);
+    if(/^תל אביב/.test(k)) vs.add('תל אביב'), vs.add('ת"א');
+    vs.forEach(v=>variants.push({v,c}));
+  });
+  variants.sort((a,b)=>b.v.length-a.v.length);
+  // כל מופעי הערים בטקסט (כולל תחילית ב/ל/מ/ו)
+  const cityHits=[];
+  variants.forEach(({v,c})=>{
+    const re=new RegExp('(^|[^'+HEB+'])((?:וב|ול|ומ|ב|ל|מ|ו)?)('+reEsc(v)+')(?!['+HEB+'])','g');
+    let m; while((m=re.exec(text))){
+      const start=m.index+m[1].length, end=start+m[2].length+m[3].length;
+      if(!cityHits.some(h=>start<h.end && end>h.start)) cityHits.push({start,end,city:c,text:m[2]+m[3]});
+    }
+  });
+  cityHits.sort((a,b)=>a.start-b.start);
+  const isCityWord=s=>{ const k=cKey(String(s).replace(/^(?:וב|ול|ומ|ב|ל|מ|ו)(?=[\u0590-\u05ff]{2})/,'')); return !!canon[k] || !!canon[cKey(s)]; };
+
+  // ── כתובות: רחוב (1\u20134 מילים) + מספר בית / טווח ──
+  const STOP_WORDS=['דירות','דירה','יח"ד','יחידות','קומות','קומה','בניינים','מבנים','מ"ר','שנים','ימים','חודשים','אחוז','מטר','מיליון','אלף','ש"ח','₪','%'];
+  const BAD_STREET=/^(?:תמ"?א|תמא|סעיף|נספח|עמוד|גוש|חלקה|מגרש|תב"?ע|שנת|בשנת|עד|מתוך|כ-?|כ|פרק|טופס|קומה|דירה|יח"ד|שעה|בשעה|יום|ביום|לפני|אחרי|מספר|מס'|מס|תיק|הצעה|שלב|פרויקט|שכונה|שכונת|כולל|סה"כ|טל'|טלפון|נייד|פקס|שעה|בשעה)$/;
+  const COMMON=/^(?:ו?(?:יש|לי|לך|לנו|את|עם|גם|רק|כל|אין|עוד|עבור|מול|ליד|אצל|בין|כמו|הנה|זה|זו|הם|הן|אני|אנחנו|שלנו|שלי|נמצא|נמצאת|נמצאים|קיים|קיימת|חדש|חדשה|חדשים|בניינים|בנייני|כמה|מספר|אחד|אחת|שני|שתי|היי|שלום|תודה|בודק|ומעדכן|מעדכן|צריך|רוצה|מבקש|מבקשים|להגיש|הצעה|הצעות|לפרויקט))$/;
+  const LEAD_WORDS=/^(?:בכתובות|בכתובת|כתובות|כתובת|הכתובת|ברחוב|ברחובות|רחוב|רחובות|רח'|ברח'|רח|מתחם|במתחם|בניין|בנין|בבניין|בבנין|הבניין|פרויקט|לפרויקט|בפרויקט|ב|ל|של|את|הוא|היא|ב-|ל-|ברח)$/;
+  const WORD="[\\u0590-\\u05FF][\\u0590-\\u05FF'\".]*";
+  const NUM="\\d{1,4}(?:\\s?[א-ת](?![\\u0590-\\u05FF]))?(?:\\s*-\\s*\\d{1,4}(?:\\s?[א-ת](?![\\u0590-\\u05FF]))?)?";
+  const addrRe=new RegExp("((?:"+WORD+"\\s+){0,3}"+WORD+")\\s+("+NUM+")(?![\\d./:\\u0590-\\u05FF]|-\\d)","g");
+  const cand=[];
+  lines.forEach((line,li)=>{
+    const off=text.split('\n').slice(0,li).reduce((a,l)=>a+l.length+1,0);
+    let m; addrRe.lastIndex=0;
+    while((m=addrRe.exec(line))){
+      let words=m[1].split(/\s+/);
+      const num=m[2].replace(/\s+/g,'');
+      const after=line.slice(m.index+m[0].length).trim();
+      // מילה שאחרי המספר: "12 דירות" / "38/2" → לא כתובת
+      if(STOP_WORDS.some(w=>after.startsWith(w))) continue;
+      words=words.map(w=>w.replace(/^[,.:;]+/,'').replace(w.length>2?/[,.:;]+$/:/[,:;]+$/,'')).filter(Boolean);
+      // "... בקרית ים הרצל 5" \u2014 עיר או מילה כללית באמצע: חתוך את מה שלפניה
+      for(let i=words.length-1;i>0;i--){
+        const w=words[i-1], w2=words.slice(Math.max(0,i-2),i).join(' ');
+        if(isCityWord(w)||isCityWord(w2)||COMMON.test(w)||LEAD_WORDS.test(w)){ words=words.slice(i); break; }
+      }
+      // מילות פתיחה בתחילת הרחוב ("בכתובות", "יש לי את")
+      while(words.length && (LEAD_WORDS.test(words[0]) || COMMON.test(words[0]) || isCityWord(words[0]))) words.shift();
+      if(!words.length) continue;
+      // תחילית ב/ל צמודה לרחוב ("ברחוב"/"בהרצל") \u2014 מסירים רק "ברחוב"/"ברח'" מפורשים
+      words[0]=words[0].replace(/^(?:ברחוב|ברח')/, '');
+      if(!words[0]) words.shift();
+      if(!words.length) continue;
+      // "בהעצמאות 7" — ב/ל + ה הידיעה צמודות לשם הרחוב
+      if(/^[בל]ה[\u0590-\u05ff]{2,}/.test(words[0])) words[0]=words[0].slice(1);
+      const street=words.join(' ');
+      const w0=words[0].replace(/^(?:וב|ול|ומ|ב|ל|מ|ו)(?=[\u0590-\u05ff]{2})/,'');
+      if(BAD_STREET.test(words[0]) || BAD_STREET.test(w0) || BAD_STREET.test(street) || isCityWord(street)) continue;
+      if(/^\d/.test(street)) continue;
+      const n1=parseInt(num,10); if(!n1 || n1>999) continue;          // מספרי בית עד 999; שנים (1998) נפסלות
+      if(street.replace(/['".]/g,'').length<2) continue;
+      cand.push({street, num, line:li, start:off+m.index, end:off+m.index+m[0].length, lineText:line, conj:/^ו/.test(m[1].split(/\s+/).slice(-words.length)[0]||'')});
+    }
+  });
+  // "הזורע 8 והנוטע 2" באותה שורה, צמודים → כתובת אחת (כמו בנתונים הקיימים)
+  const merged=[];
+  cand.forEach(c=>{
+    const prev=merged[merged.length-1];
+    const between=prev ? text.slice(prev.end, c.start) : '';
+    const conjStreet=/^ו[\u0590-\u05ff]/.test(c.street);
+    if(prev && prev.line===c.line && conjStreet && /^[\s,]*$/.test(between.replace(/ו$/,''))){
+      prev.street2=(prev.street2||[]).concat([c.street+' '+c.num]); prev.end=c.end; return;
+    }
+    merged.push(Object.assign({},c));
+  });
+
+  // ── עיר לכל כתובת: קודם אחריה באותה שורה, אחר כך לפניה באותה שורה, אחר כך עיר יחידה בטקסט ──
+  const lineOf=pos=>text.slice(0,pos).split('\n').length-1;
+  const distinctCities=[...new Set(cityHits.map(h=>h.city))];
+  merged.forEach(a=>{
+    const same=cityHits.filter(h=>lineOf(h.start)===a.line);
+    const after=same.filter(h=>h.start>=a.end-1).sort((x,y)=>x.start-y.start)[0];
+    const before=same.filter(h=>h.end<=a.start+1).sort((x,y)=>y.start-x.start)[0];
+    // עיר בכותרת שמעל ("בתל אביב:") \u2014 המופע הקרוב ביותר לפני הכתובת, עד 3 שורות אחורה
+    const prevHit=cityHits.filter(h=>h.end<=a.start && a.line-lineOf(h.start)<=3).sort((x,y)=>y.start-x.start)[0];
+    a.city = after ? after.city : before ? before.city : prevHit ? prevHit.city : (distinctCities.length===1 ? distinctCities[0] : '');
+    a.address=(a.street+' '+a.num+(a.street2?' '+a.street2.join(' '):'')).replace(/\s+/g,' ').trim();
+    // יח"ד באותה שורה
+    const u=a.lineText.match(/(\d{1,4})\s*(?:דירות|יח"ד|יחידות(?:\s+דיור)?)/);
+    a.units=(u && merged.filter(b=>b.line===a.line).length===1)?u[1]:'';
+    a.type=_ptype(a.lineText);
+  });
+  // כפילויות (למשל נושא המייל + גוף המייל) \u2014 לפי רחוב+מספר+עיר
+  const seen=new Set();
+  out.leads=merged.filter(a=>{
+    const k=(a.street.replace(/^ו/,'')+'|'+a.num+'|'+(a.city||'')).replace(/\s+/g,' ');
+    const k2=(a.street.replace(/^ו/,'')+'|'+a.num+'|');
+    if(seen.has(k) || (a.city && seen.has(k2))) return false;
+    seen.add(k); if(a.city) seen.add(k2); return true;
+  }).map(a=>({address:a.address, city:a.city, units:a.units, type:a.type}));
+  // אותה כתובת פעם בלי עיר ופעם עם \u2014 השאר את זו עם העיר
+  out.leads=out.leads.filter((a,i,arr)=>a.city || !arr.some((b,j)=>j!==i && b.city && b.address===a.address));
+
+  // ── פרטים משותפים ──
+  const PHONE_RE=/(?:\+972[-\s]?|0)(?:5\d|[2-4]|[89]|7\d)[-\s]?\d{3}[-\s]?\d{4}/;
+  const MAIL_RE=/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
+  const ph=text.match(PHONE_RE); if(ph) out.shared.phone=ph[0].replace(/[\s-]/g,'').replace(/^\+972/,'0');
+  const em=text.match(MAIL_RE); if(em) out.shared.email=em[0];
+  out.shared.type=_ptype(text);
+  // מועד הגשה / תגובה: "עד התאריך 29.10.2026", "עד ה-29/10/26", "מועד הגשה: 29.10.2026"
+  const dl=text.match(/(?:עד|לא\s+יאוחר\s+מ|מועד\s+(?:ה)?הגש(?:ה|ת)[^\d\n]{0,20}|דד?ליין)[^\d\n]{0,12}(\d{1,2})[./](\d{1,2})[./](\d{2,4})/);
+  if(dl){ const iso=_iso(dl[1],dl[2],dl[3]); if(iso) out.shared.deadline=iso; }
+  // תאריך קבלה: "9 בספט'" / "9 בספטמבר" (מייל) \u2014 השנה הנוכחית, ואם יוצא בעתיד \u2014 שנה קודמת
+  const MON={ינו:1,פבר:2,מרץ:3,מרס:3,אפר:4,מאי:5,יונ:6,יול:7,אוג:8,ספט:9,אוק:10,נוב:11,דצמ:12};
+  const rd=text.match(/(?:^|[^\d])(\d{1,2})\s+ב(ינו|פבר|מרץ|מרס|אפר|מאי|יונ|יול|אוג|ספט|אוק|נוב|דצמ)/);
+  if(rd && ctx.today){
+    let y=+ctx.today.slice(0,4); let iso=_iso(rd[1],MON[rd[2]],y);
+    if(iso && iso>ctx.today) iso=_iso(rd[1],MON[rd[2]],y-1);
+    if(iso) out.shared.date=iso;
+  }
+  // מקור
+  if(/קבצים מצורפים|בכבוד רב|בברכה|Outlook|Gmail|(?:^|\s)אל\s*$|\+\s*\d+\s+אל/m.test(text)) out.shared.source='מייל';
+  else if(/WhatsApp|וואטסאפ|וואטספ|(?:^|\s)\d{1,2}:\d{2}(?:\s|$)/m.test(text)) out.shared.source='וואטספ';
+  // כתובת מייל לבדה לא מעידה על מקור (גם בוואטסאפ שולחים מיילים) — נשאר ברירת המחדל
+  // מארגן: 1) שם מארגן קיים שמופיע בטקסט 2) חתימה 3) תווית "שם:" 4) שם באנגלית בכותרת המייל
+  const orgs=(ctx.organizers||[]).filter(n=>n && n.length>=4).sort((a,b)=>b.length-a.length);
+  const knownOrg=orgs.find(n=>new RegExp('(^|[^'+HEB+'])'+reEsc(n)+'(?!['+HEB+'])').test(text));
+  let name=knownOrg||'', role='';
+  if(!name){
+    const CLOSE=/^(?:בכבוד\s+רב|בברכה|בתודה|תודה\s+רבה|תודה\s+מראש|תודה|שלך|בהוקרה|--)[,.!\s-]*$/;
+    let sigIdx=-1; lines.forEach((l,i)=>{ if(CLOSE.test(l)) sigIdx=i; });
+    for(let i=sigIdx+1; sigIdx>=0 && i<Math.min(lines.length,sigIdx+3); i++){
+      if(CLOSE.test(lines[i])) continue;
+      const parts=lines[i].split(/\s+[-|,]\s+|,/);
+      const cand=parts[0].trim();
+      if(/^[\u0590-\u05ff'"]+(?:\s+[\u0590-\u05ff'"-]+){1,2}$/.test(cand) && !/[\d@]/.test(cand)){ name=cand; role=parts.slice(1).join(' - ').trim(); break; }
+    }
+  }
+  if(!name && out.shared.source!=='מייל' && lines.length){
+    const h=lines[0].split(/\s*[\u00b7|+\-]\s*/)[0].trim();
+    if(/^[\u0590-\u05ff'"]+(?:\s+[\u0590-\u05ff'"]+){1,2}$/.test(h) && !/^(?:היי|הי|שלום|בוקר|ערב)$/.test(h.split(' ')[0])) name=h;
+  }
+  if(!name){
+    const lab=text.match(/(?:שם[ \t]+הפונה|שם[ \t]+איש[ \t]+הקשר|איש[ \t]+קשר|נציג(?:ת)?[ \t]+(?:ה)?דיירים|מאת|שם)[ \t]*[:\-][ \t]*([\u0590-\u05ff'"]+(?:[ \t]+[\u0590-\u05ff'"]+){0,2})/);
+    if(lab) name=lab[1].trim();
+  }
+  if(!name){
+    const en=text.match(/\b([A-Z][a-z]+(?:[- ][A-Z][a-z]+){1,2})\b/);
+    if(en && !/@/.test(en[0])) name=en[1];
+  }
+  out.shared.name=name;
+  // הערות: נושא/שורה ראשונה משמעותית, תפקיד החותם, מועד הגשה
+  const notes=[];
+  const subj=lines.find(l=>/הזמנה|הצעות|מכרז|פנייה|בקשה|פרויקט|התחדשות/.test(l) && l.length<=90 && l.length>=10);
+  if(subj) notes.push(subj.replace(/\s+/g,' '));
+  if(name && role) notes.push(name+' \u2013 '+role);
+  if(out.shared.deadline && /הגש|הצע|מכרז/.test(text)) notes.push('מועד הגשת הצעות: '+out.shared.deadline.split('-').reverse().join('/'));
+  out.shared.notes=[...new Set(notes)].join(' | ');
+  return out;
+
+  function _ptype(s){
+    if(/פינוי[\s-]*בינוי/.test(s)) return 'פינוי-בינוי';
+    if(/תמ"?א\s*38\s*\/\s*1\b|38\/1/.test(s)) return 'תמ"א 38/1';
+    if(/תמ"?א\s*38/.test(s)) return 'תמ"א 38/2';
+    return '';
+  }
+  function _iso(d,m,y){
+    d=+d; m=+m; y=+y; if(y<100) y+=2000;
+    if(!(d>=1&&d<=31&&m>=1&&m<=12&&y>=2000&&y<=2100)) return '';
+    const dt=new Date(Date.UTC(y,m-1,d)); if(dt.getUTCMonth()!==m-1) return '';
+    return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  }
+}
+
+
+// ══ קליטת לידים מצילום מסך ══════════════════════════════════════════════════
+// זיהוי הטקסט רץ בתוך הדפדפן (Tesseract, עברית+אנגלית) — בלי שרת ובלי מפתח API.
+// המנוע נטען רק בשימוש הראשון (כמה MB), ונשמר במכשיר לפעמים הבאות. התמונה לא נשלחת לשום מקום.
+const OCR_LIB  = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+const OCR_SRI  = 'sha384-GJqSu7vueQ9qN0E9yLPb3Wtpd7OrgK8KmYzC8T1IysG1bcvxvIO4qtYR/D3A991F';
+const OCR_WORKER='https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js';
+const OCR_CORE = 'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1';
+const OCR_MAX_BYTES = 20*1024*1024;
+let _ocrWorkerP=null, _ocrIdle=null, _ocrBusy=false;
+
+function _ocrLoadLib(){
+  if(window.Tesseract) return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=OCR_LIB; s.integrity=OCR_SRI; s.crossOrigin='anonymous'; s.referrerPolicy='no-referrer';
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('טעינת מנוע הזיהוי נכשלה — בדוק חיבור לאינטרנט'));
+    document.head.appendChild(s);
+  });
+}
+function _ocrGetWorker(){
+  if(!_ocrWorkerP){
+    _ocrWorkerP=(async()=>{
+      await _ocrLoadLib();
+      return await Tesseract.createWorker(['heb','eng'], 1, {
+        workerPath:OCR_WORKER, corePath:OCR_CORE,
+        logger:m=>{ try{ window._ocrOnLog && window._ocrOnLog(m); }catch(e){} }
+      });
+    })().catch(e=>{ _ocrWorkerP=null; throw e; });
+  }
+  return _ocrWorkerP;
+}
+// שחרור זיכרון אחרי 5 דקות בלי שימוש
+function _ocrScheduleIdle(){
+  clearTimeout(_ocrIdle);
+  _ocrIdle=setTimeout(async()=>{ const p=_ocrWorkerP; _ocrWorkerP=null; try{ (await p).terminate(); }catch(e){} }, 5*60*1000);
+}
+// הכנת התמונה: הקטנה של תמונה גדולה מאוד, גווני אפור, והיפוך שורות כהות —
+// כך גם טקסט לבן על רקע כהה (שם השיחה בכותרת של וואטסאפ) מזוהה.
+async function _ocrPrepImage(blob){
+  try{
+    const bmp=await createImageBitmap(blob);
+    const MAX=2600, sc=Math.min(1, MAX/Math.max(bmp.width,bmp.height));
+    const c=document.createElement('canvas'); c.width=Math.round(bmp.width*sc); c.height=Math.round(bmp.height*sc);
+    const g=c.getContext('2d',{willReadFrequently:true});
+    g.drawImage(bmp,0,0,c.width,c.height); bmp.close&&bmp.close();
+    const id=g.getImageData(0,0,c.width,c.height), d=id.data, W=c.width;
+    for(let y=0;y<c.height;y++){
+      let sum=0; const o=y*W*4;
+      for(let x=0;x<W;x++){ const i=o+x*4; const l=(d[i]*299+d[i+1]*587+d[i+2]*114)/1000; d[i]=d[i+1]=d[i+2]=l; sum+=l; }
+      if(sum/W<110){ for(let x=0;x<W;x++){ const i=o+x*4; d[i]=d[i+1]=d[i+2]=255-d[i]; } }
+    }
+    g.putImageData(id,0,0);
+    return await new Promise(r=>c.toBlob(b=>r(b||blob),'image/png'));
+  }catch(e){ return blob; }
+}
+function _ocrStatus(html, kind){
+  const el=document.getElementById('ocrStatus'); if(!el) return;
+  el.style.display=html?'block':'none';
+  el.className='ocr-status'+(kind?' '+kind:'');
+  el.innerHTML=html||'';
+}
+async function ocrImageToText(blob){
+  const w=await _ocrGetWorker();
+  const img=await _ocrPrepImage(blob);
+  const {data}=await w.recognize(img);
+  _ocrScheduleIdle();
+  return (data&&data.text)||'';
+}
+async function ocrFromFile(file){
+  if(!file) return;
+  if(_ocrBusy){ toast('⏳ זיהוי קודם עדיין רץ'); return; }
+  if(!/^image\//.test(file.type||'')){ toast('⚠️ יש לבחור קובץ תמונה'); return; }
+  if(file.size>OCR_MAX_BYTES){ toast('⚠️ התמונה גדולה מדי'); return; }
+  _ocrBusy=true;
+  const btn=document.getElementById('ocrBtn'); if(btn) btn.disabled=true;
+  const first=!window.Tesseract;
+  _ocrStatus(first?'⏳ טוען את מנוע הזיהוי — בפעם הראשונה זה לוקח כמה שניות…':'⏳ מזהה טקסט…');
+  window._ocrOnLog=m=>{
+    if(m.status==='recognizing text') _ocrStatus('🔎 מזהה טקסט… '+Math.round((m.progress||0)*100)+'%');
+    else if(/loading|initializ/.test(m.status||'')) _ocrStatus('⏳ טוען את מנוע הזיהוי'+(first?' (פעם ראשונה במכשיר הזה)':'')+'…');
+  };
+  try{
+    const text=await ocrImageToText(file);
+    _ocrStatus('');
+    applyParsedText(text, {fromImage:true});
+  }catch(e){
+    console.error('OCR failed', e);
+    _ocrStatus('⚠️ '+escHtml((e&&e.message)||'הזיהוי נכשל')+' — אפשר לנסות שוב, או להקליד ידנית.','err');
+  }finally{
+    _ocrBusy=false; window._ocrOnLog=null; if(btn) btn.disabled=false;
+  }
+}
+// הדבקת תמונה (Ctrl+V) כשטופס "ליד חדש" פתוח
+document.addEventListener('paste', e=>{
+  const ov=document.getElementById('formOverlay');
+  if(!ov || !ov.classList.contains('open')) return;
+  const items=[...((e.clipboardData&&e.clipboardData.items)||[])];
+  const it=items.find(i=>i.kind==='file' && /^image\//.test(i.type));
+  if(!it) return;
+  e.preventDefault();
+  ocrFromFile(it.getAsFile());
+});
+
+// הקשר לפענוח: ערים (כולל הכתיב שכבר נפוץ במערכת), מארגנים קיימים, היום
+function _leadParseCtx(){
+  const cnt={};
+  leads.forEach(l=>{ const c=(l.city||'').trim(); if(c) cnt[c]=(cnt[c]||0)+1; });
+  const key=s=>String(s).replace(/קריית/g,'קרית').replace(/[-\s]+/g,' ').trim();
+  const pref={};
+  Object.entries(cnt).sort((a,b)=>b[1]-a[1]).forEach(([c])=>{ const k=key(c); if(!pref[k]) pref[k]=c; });
+  const orgs=[...new Set(leads.flatMap(l=>{ try{ return callerNames(l); }catch(e){ return []; } }))]
+    .filter(n=>n && !(typeof ORG_GENERIC!=='undefined' && ORG_GENERIC.has(n)));
+  return {cities:[...new Set([...(typeof KNOWN_CITIES!=='undefined'?KNOWN_CITIES:[]), ...Object.keys(cnt)])], cityPref:pref, organizers:orgs, today:todayIL()};
+}
+
+// מחלק את התוצאה: ליד אחד → ממלא את הטופס; כמה → חלון בדיקה
+function applyParsedText(text, opt){
+  opt=opt||{};
+  const res=parseLeadsText(text, _leadParseCtx());
+  window._lastParsed=res;
+  if(res.leads.length>=2){ openLeadsReview(res, opt); return res; }
+  _fillFormFromParsed(res, opt);
+  return res;
+}
+function _fillFormFromParsed(res, opt){
+  const L=res.leads[0]||{}, S=res.shared;
+  const filled=[];
+  const set=(id,v,label)=>{ const el=document.getElementById(id); if(!el||!v) return;
+    if(el.tagName==='SELECT'){ if(![...el.options].some(o=>o.value===v)) return; }
+    el.value=v; el.classList.add('ocr-filled'); if(label) filled.push(label); };
+  set('f_address',L.address,'כתובת'); set('f_city',L.city,'עיר');
+  set('f_name',S.name,'פונה'); set('f_phone',S.phone,'טלפון'); set('f_email',S.email,'מייל');
+  set('f_type',L.type||S.type); set('f_source',S.source);
+  set('f_date',S.date,'תאריך קבלה'); set('f_deadline',S.deadline,'תאריך לתגובה');
+  const notes=[S.notes, L.units?L.units+' יח"ד':''].filter(Boolean).join(' | ');
+  if(notes){ const n=document.getElementById('f_notes'); if(n){ n.value=[n.value.trim(),notes].filter(Boolean).join(' | '); n.classList.add('ocr-filled'); } }
+  try{ checkDuplicate('f_address','f_city','f_dupWarn'); }catch(e){}
+  try{ _saveLeadDraft(); }catch(e){}
+  _ocrShowText(res.text);
+  if(opt.fromImage){
+    if(filled.length) _ocrStatus('✨ זוהו מצילום המסך: '+escHtml(filled.join(', '))+'. השדות הצהובים מולאו אוטומטית — בדוק לפני שמירה.','ok');
+    else _ocrStatus('⚠️ לא זוהו פרטי ליד בתמונה. הטקסט שזוהה מופיע למטה — אפשר להעתיק ממנו.','err');
+  }
+  return filled;
+}
+// הטקסט שזוהה — לעיון והעתקה
+function _ocrShowText(t){
+  const box=document.getElementById('ocrTextWrap'), ta=document.getElementById('ocrText');
+  if(!box||!ta) return;
+  ta.value=t||''; box.style.display=t?'block':'none';
+}
+document.addEventListener('input', e=>{ if(e.target && e.target.classList && e.target.classList.contains('ocr-filled')) e.target.classList.remove('ocr-filled'); });
+document.addEventListener('change', e=>{ if(e.target && e.target.classList && e.target.classList.contains('ocr-filled')) e.target.classList.remove('ocr-filled'); });
+
+// ── חלון בדיקה: כמה לידים מאותה תמונה/הודעה ──
+function openLeadsReview(res, opt){
+  document.getElementById('_lrModal')?.remove();
+  const S=res.shared, T=todayIL();
+  const srcOpts=[...document.querySelectorAll('#f_source option')].map(o=>o.value);
+  const stOpts=STATUS_DEFINITIONS.filter(d=>!d.closed).map(d=>d.name);
+  const types=(typeof PROJECT_TYPES!=='undefined'?PROJECT_TYPES:['תמ"א 38/2','פינוי-בינוי']);
+  const opt_=(arr,sel)=>arr.map(v=>`<option value="${escHtml(v)}"${v===sel?' selected':''}>${escHtml(v)}</option>`).join('');
+  const orgList=_leadParseCtx().organizers.sort((a,b)=>a.localeCompare(b,'he'));
+  const rows=res.leads.map((L,i)=>{
+    const dup=(L.address&&L.city)?_findDupLead(L.address,L.city):null;
+    return `<div class="lr-row${dup?' dup':''}" data-i="${i}">
+      <label class="lr-chk"><input type="checkbox" class="lr-on"${dup?'':' checked'} onchange="_lrCount()"></label>
+      <div class="lr-fields">
+        <input type="text" class="lr-addr" value="${escHtml(L.address)}" placeholder="כתובת *" aria-label="כתובת">
+        <input type="text" class="lr-city" value="${escHtml(L.city)}" placeholder="עיר *" list="cityList" aria-label="עיר">
+        <select class="lr-type" aria-label="סוג">${opt_(types, L.type||S.type||types.find(t=>/38\/2/.test(t))||types[0])}</select>
+        <input type="text" class="lr-units" value="${escHtml(L.units||'')}" placeholder="יח״ד" inputmode="numeric" aria-label="יחידות דיור">
+      </div>
+      ${dup?`<div class="lr-dup">⚠️ דומה לליד קיים: ${escHtml(dup.address)}, ${escHtml(dup.city||'')} — ${escHtml(dup.status)} (${fmtDate(dup.date)})</div>`:''}
+      <div class="lr-err" style="display:none"></div>
+    </div>`;
+  }).join('');
+  const m=document.createElement('div'); m.id='_lrModal'; m.className='lr-overlay';
+  m.innerHTML=`<div class="lr-card" role="dialog" aria-modal="true" aria-labelledby="_lrTitle">
+    <div class="lr-head">
+      <div id="_lrTitle" class="lr-title">${opt&&opt.fromImage?'📷':'💬'} זוהו ${res.leads.length} לידים — בדוק לפני הוספה</div>
+      <button type="button" class="lr-x" onclick="closeLeadsReview()" aria-label="סגור">✕</button>
+    </div>
+    <div class="lr-body">
+      <div class="lr-shared">
+        <div class="form-group"><label>מארגן / פונה</label><input type="text" id="lr_name" value="${escHtml(S.name)}" list="lrOrgList"></div>
+        <div class="form-group"><label>תאריך קבלה</label><input type="date" id="lr_date" value="${escHtml(S.date||T)}"></div>
+        <div class="form-group"><label>מקור</label><select id="lr_source">${opt_(srcOpts, S.source||srcOpts[0])}</select></div>
+        <div class="form-group"><label>סטטוס</label><select id="lr_status">${opt_(stOpts,'חדש')}</select></div>
+        <div class="form-group"><label>תאריך לתגובה</label><input type="date" id="lr_deadline" value="${escHtml(S.deadline)}"></div>
+        <div class="form-group"><label>טלפון</label><input type="tel" id="lr_phone" value="${escHtml(S.phone)}"></div>
+        <div class="form-group"><label>מייל</label><input type="email" id="lr_email" value="${escHtml(S.email)}"></div>
+        <div class="form-group full"><label>הערות (לכל הלידים)</label><input type="text" id="lr_notes" value="${escHtml(S.notes)}"></div>
+      </div>
+      <datalist id="lrOrgList">${orgList.map(n=>`<option value="${escHtml(n)}">`).join('')}</datalist>
+      <div class="lr-rows">${rows}</div>
+      <details class="lr-text"><summary>הטקסט שזוהה</summary><textarea readonly>${escHtml(res.text)}</textarea></details>
+    </div>
+    <div class="lr-foot">
+      <button type="button" class="btn btn-cancel" onclick="closeLeadsReview()">ביטול</button>
+      <button type="button" class="btn btn-save" id="_lrSave" onclick="confirmLeadsReview()">הוסף</button>
+    </div>
+  </div>`;
+  m.addEventListener('click',e=>{ if(e.target===m) closeLeadsReview(); });
+  document.body.appendChild(m);
+  window._lrEsc=e=>{ if(e.key==='Escape'){ e.preventDefault(); closeLeadsReview(); } };
+  document.addEventListener('keydown', window._lrEsc);
+  // בדיקת כפולים מחדש כשמתקנים כתובת/עיר
+  m.querySelectorAll('.lr-addr,.lr-city').forEach(inp=>inp.addEventListener('change',()=>_lrRecheck(inp.closest('.lr-row'))));
+  _lrCount();
+  if(opt&&opt.fromImage) _ocrStatus('');
+}
+function _lrRecheck(row){
+  const a=row.querySelector('.lr-addr').value.trim(), c=row.querySelector('.lr-city').value.trim();
+  const dup=(a&&c)?_findDupLead(a,c):null;
+  row.classList.toggle('dup',!!dup);
+  let d=row.querySelector('.lr-dup');
+  if(dup){ if(!d){ d=document.createElement('div'); d.className='lr-dup'; row.insertBefore(d,row.querySelector('.lr-err')); }
+    d.textContent='⚠️ דומה לליד קיים: '+dup.address+', '+(dup.city||'')+' — '+dup.status+' ('+fmtDate(dup.date)+')'; }
+  else if(d) d.remove();
+}
+function _lrCount(){
+  const n=document.querySelectorAll('#_lrModal .lr-on:checked').length;
+  const b=document.getElementById('_lrSave'); if(!b) return;
+  b.textContent = n ? `הוסף ${n===1?'ליד אחד':n+' לידים'}` : 'לא נבחרו לידים';
+  b.disabled = !n;
+}
+function closeLeadsReview(){
+  document.getElementById('_lrModal')?.remove();
+  if(window._lrEsc){ document.removeEventListener('keydown', window._lrEsc); window._lrEsc=null; }
+}
+let _lrSaving=false;
+async function confirmLeadsReview(){
+  if(_lrSaving) return;
+  const m=document.getElementById('_lrModal'); if(!m) return;
+  const g=id=>(document.getElementById(id)||{}).value||'';
+  const shared={date:g('lr_date'), source:g('lr_source'), status:g('lr_status'), deadline:g('lr_deadline'),
+    name:g('lr_name').trim(), phone:g('lr_phone').trim(), email:g('lr_email').trim(), notes:g('lr_notes').trim()};
+  const picked=[]; let bad=false;
+  m.querySelectorAll('.lr-row').forEach(row=>{
+    const err=row.querySelector('.lr-err'); err.style.display='none'; err.textContent='';
+    if(!row.querySelector('.lr-on').checked) return;
+    const units=row.querySelector('.lr-units').value.trim();
+    const snap=Object.assign({}, shared, {
+      address:row.querySelector('.lr-addr').value.trim(), city:row.querySelector('.lr-city').value.trim(),
+      type:row.querySelector('.lr-type').value, irrelReason:'', irrelReasonNote:'', winCompany:''});
+    if(units && /^\d{1,4}$/.test(units)) snap.units_exist=units;
+    const v=validateLeadInput(snap);
+    if(!v.ok){ bad=true; err.textContent='⚠️ חסר או לא תקין: '+v.errors.join(', '); err.style.display='block'; }
+    picked.push(snap);
+  });
+  if(bad || !picked.length){ if(bad) toast('⚠️ יש שורות לתיקון'); return; }
+  _lrSaving=true;
+  const btn=document.getElementById('_lrSave'); if(btn){ btn.disabled=true; btn.textContent='⏳ שומר...'; }
+  try{
+    const ids=await allocIds(picked.length);
+    if(!ids){ return; }
+    const T=todayIL();
+    picked.forEach((snap,i)=>leads.unshift(Object.assign({id:ids[i]}, snap, {statusChangedAt:T, replied:'לא', internalNotes:[]})));
+    closeLeadsReview();
+    const fo=document.getElementById('formOverlay'); if(fo && fo.classList.contains('open')){ closeForm(); try{ clearLeadDraft(); }catch(e){} }
+    refresh();
+    saveData(ids);
+    let saved=true;
+    if(sb && typeof flushPendingSaves==='function'){ try{ saved=await flushPendingSaves(); }catch(e){ saved=false; } }
+    if(saved){
+      toast(`✅ נוספו ${ids.length} לידים ונשמרו בענן`);
+      try{ logLeadAuditBulk(ids.map(id=>leads.find(l=>l.id===id)).filter(Boolean),'screenshot'); }catch(e){}
+    } else {
+      showSaveError('הלידים נוצרו מקומית אך השמירה בענן נכשלה. הם בתור וינסו להסתנכרן — אל תסגור את הדפדפן עד שיופיע "☁️ מסונכרן".');
+    }
+  } finally {
+    _lrSaving=false;
+    const b=document.getElementById('_lrSave'); if(b){ b.disabled=false; _lrCount(); }
+  }
+}
+
 function parseWaContent(text){
   const result={address:'',city:'',name:'',phone:'',email:'',notes:''};
   text=(text||'').trim();
@@ -4799,8 +5342,19 @@ function parseWaContent(text){
 function parseWaPaste(){
   const text=document.getElementById('waPasteInput').value.trim();
   if(!text){toast('⚠️ הדבק קודם הודעה');return;}
+  // כמה כתובות בהודעה אחת → חלון בדיקה לכל הלידים
+  let _multi=null; try{ _multi=parseLeadsText(text,_leadParseCtx()); }catch(e){}
+  if(_multi && _multi.leads.length>=2){ openLeadsReview(_multi,{fromImage:false}); return; }
   const p=parseWaContent(text);
+  // כתובת אחת: הפענוח החדש מדויק יותר (מסיר "יש בניין ב...", מזהה עיר עם תחילית)
+  if(_multi && _multi.leads.length===1){ const L=_multi.leads[0]; p.address=L.address; if(L.city) p.city=L.city; if(!p.name && _multi.shared.name) p.name=_multi.shared.name; }
   let filled=[];
+  if(_multi){ const S=_multi.shared;
+    const _set=(id,v)=>{ const el=document.getElementById(id); if(el && v && !el.value){ if(el.tagName==='SELECT' && ![...el.options].some(o=>o.value===v)) return; el.value=v; } };
+    if(S.deadline){ const d=document.getElementById('f_deadline'); if(d && !d.value){ d.value=S.deadline; filled.push('תאריך לתגובה'); } }
+    const ft=document.getElementById('f_type'); if(ft && S.type && [...ft.options].some(o=>o.value===S.type)) ft.value=S.type;
+    const fs=document.getElementById('f_source'); if(fs && S.source && [...fs.options].some(o=>o.value===S.source)) fs.value=S.source;
+  }
   if(p.address){document.getElementById('f_address').value=p.address;filled.push('כתובת');}
   if(p.city){document.getElementById('f_city').value=p.city;filled.push('עיר');}
   if(p.name){document.getElementById('f_name').value=p.name;filled.push('שם');}
@@ -4851,6 +5405,7 @@ document.addEventListener('input', e=>{ if(e.target && e.target.closest && e.tar
 document.addEventListener('change', e=>{ if(e.target && e.target.closest && e.target.closest('#formOverlay')){ clearTimeout(_draftTimer); _draftTimer=setTimeout(_saveLeadDraft,200); } });
 
 function openForm(){
+  try{ _ocrStatus(''); _ocrShowText(''); document.querySelectorAll('#formOverlay .ocr-filled').forEach(e=>e.classList.remove('ocr-filled')); }catch(e){}
   const wpi=document.getElementById('waPasteInput');if(wpi)wpi.value='';
   const wpc=document.getElementById('waPasteContent');if(wpc)wpc.style.display='none';
   const wpt=document.getElementById('waPasteToggle');if(wpt)wpt.textContent='▼ פתח';
