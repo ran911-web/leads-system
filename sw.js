@@ -22,10 +22,13 @@ self.addEventListener('fetch', e=>{
           const payload=JSON.stringify({ text: text||'', ts: Date.now() });
           await cache.put('/leads-system/__shared', new Response(payload, {headers:{'Content-Type':'application/json'}}));
         }
-        // תמונה משותפת (צילום מסך) — נשמרת זמנית, האפליקציה מזהה ממנה את הליד ומוחקת אותה
+        // קובץ משותף (צילום מסך / PDF / Word) — נשמר זמנית, האפליקציה מזהה ממנה את הליד ומוחקת אותה
         const img = form.get('shared_image');
-        if(img && typeof img!=='string' && img.size && /^image\//.test(img.type||'')){
-          await cache.put('/leads-system/__shared_img', new Response(img, {headers:{'Content-Type':img.type, 'X-Shared-Ts':String(Date.now())}}));
+        const okType = img && typeof img!=='string' && img.size &&
+          (/^image\//.test(img.type||'') || img.type==='application/pdf' || /wordprocessingml/.test(img.type||'') || /\.(pdf|docx)$/i.test(img.name||''));
+        if(okType){
+          await cache.put('/leads-system/__shared_img', new Response(img, {headers:{'Content-Type':img.type||'application/octet-stream',
+            'X-Shared-Ts':String(Date.now()), 'X-Shared-Name':encodeURIComponent(img.name||'')}}));
         }
       }catch(err){}
       // הפניה נקייה, נבנית מ-origin האמיתי

@@ -749,6 +749,7 @@ svg.ico{width:1.05em;height:1.05em;vertical-align:-0.16em;flex:none;fill:none;st
 .ocr-box{background:#eff6ff;border:1.5px solid #93c5fd;border-radius:10px;padding:10px 12px;margin-bottom:10px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;}
 .ocr-btn{background:var(--blue,#2563eb);color:#fff;font-weight:700;padding:8px 14px;flex:none;}
 .ocr-btn:disabled{opacity:.6;cursor:wait;}
+.ocr-box.drag{border-style:dashed;border-color:var(--blue,#2563eb);background:#dbeafe;}
 .ocr-hint{font-size:11.5px;color:#1e3a8a;flex:1;min-width:180px;line-height:1.45;}
 .ocr-status{flex-basis:100%;font-size:12.5px;font-weight:700;color:#1e3a8a;padding:7px 10px;border-radius:8px;background:#dbeafe;}
 .ocr-status.ok{background:#fef9c3;color:#854d0e;} .ocr-status.err{background:#fee2e2;color:#991b1b;}
@@ -1152,9 +1153,9 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
   <div class="form-card">
     <div class="form-title">➕ הוספת ליד חדש</div>
     <div id="ocrBox" class="ocr-box">
-      <button type="button" class="btn ocr-btn" id="ocrBtn" onclick="document.getElementById('ocrFile').click()">📷 מצילום מסך</button>
-      <span class="ocr-hint">מייל, וואטסאפ או מסמך — המערכת תזהה כתובת, עיר, מארגן ומועד. <span class="ocr-desk">אפשר גם להדביק תמונה (Ctrl+V).</span></span>
-      <input type="file" id="ocrFile" accept="image/*" hidden onchange="ocrFromFile(this.files[0]); this.value=''">
+      <button type="button" class="btn ocr-btn" id="ocrBtn" onclick="document.getElementById('ocrFile').click()">📎 מצילום מסך או מסמך</button>
+      <span class="ocr-hint">צילום מסך, PDF או Word — המערכת תזהה כתובת, עיר, מארגן ומועד. <span class="ocr-desk">אפשר גם לגרור קובץ לכאן או להדביק תמונה (Ctrl+V).</span></span>
+      <input type="file" id="ocrFile" accept="image/*,.pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.doc,application/msword" hidden onchange="intakeFile(this.files[0]); this.value=''">
       <div id="ocrStatus" class="ocr-status" style="display:none" role="status" aria-live="polite"></div>
       <details id="ocrTextWrap" class="ocr-text" style="display:none"><summary>הטקסט שזוהה</summary><textarea id="ocrText" readonly></textarea></details>
     </div>
@@ -4719,7 +4720,8 @@ async function checkSharedContent(){
         const ts=+(r.headers.get('X-Shared-Ts')||0);
         const blob=await r.blob();
         await cache.delete('/leads-system/__shared_img');
-        if(blob && blob.size && Date.now()-ts < 5*60*1000) sharedImg=new File([blob],'shared-image',{type:blob.type||'image/png'});
+        let nm='shared-file'; try{ nm=decodeURIComponent(r.headers.get('X-Shared-Name')||'')||nm; }catch(_){}
+        if(blob && blob.size && Date.now()-ts < 5*60*1000) sharedImg=new File([blob],nm,{type:blob.type||'application/octet-stream'});
       }
     }catch(e){}
   }
@@ -4729,7 +4731,7 @@ async function checkSharedContent(){
     const login=document.getElementById('loginScreen');
     if(window.openForm && login && login.style.display==='none'){
       openForm();
-      if(sharedImg){ setTimeout(()=>ocrFromFile(sharedImg),300); return; }
+      if(sharedImg){ setTimeout(()=>intakeFile(sharedImg),300); return; }
       setTimeout(()=>{
         const wpi=document.getElementById('waPasteInput');
         if(wpi){
@@ -4807,7 +4809,10 @@ function parseLeadsText(raw, ctx){
   const NUM="\\d{1,4}(?:\\s?[א-ת](?![\\u0590-\\u05FF]))?(?:\\s*-\\s*\\d{1,4}(?:\\s?[א-ת](?![\\u0590-\\u05FF]))?)?";
   const addrRe=new RegExp("((?:"+WORD+"\\s+){0,3}"+WORD+")\\s+("+NUM+")(?![\\d./:\\u0590-\\u05FF]|-\\d)","g");
   const cand=[];
+  // במסמכים (PDF/Word): שורות נייר מכתבים — טלפון, פקס, אתר, מייל, מיקוד, ת.ד — אינן כתובת פרויקט
+  const LETTERHEAD=/(?:טל['׳]?|טלפון|פקס|פקסימיליה|נייד|מיקוד|ת\.ד|www\.|\.co\.il|\.com|@|(?:\+972|0)\d{1,2}[-\s]?\d{7})/;
   lines.forEach((line,li)=>{
+    if(ctx.docMode && LETTERHEAD.test(line)) return;
     const off=text.split('\n').slice(0,li).reduce((a,l)=>a+l.length+1,0);
     let m; addrRe.lastIndex=0;
     while((m=addrRe.exec(line))){
@@ -4818,12 +4823,17 @@ function parseLeadsText(raw, ctx){
       if(STOP_WORDS.some(w=>after.startsWith(w))) continue;
       words=words.map(w=>w.replace(/^[,.:;]+/,'').replace(w.length>2?/[,.:;]+$/:/[,:;]+$/,'')).filter(Boolean);
       // "... בקרית ים הרצל 5" \u2014 עיר או מילה כללית באמצע: חתוך את מה שלפניה
+      // סוג רחוב ("שדרות", "דרך", "רחוב") — מה שאחריו הוא שם רחוב, גם אם הוא גם שם של עיר ("שדרות ירושלים")
+      const STYPE=/^(?:ו?ב?)(?:שדרות|שד'|שדרת|דרך|סמטת|סמ'|כיכר|מעלה|נתיב|שביל|רחוב|רח'|רח)$/;
+      const KEEP_TYPE=/^(?:ו?ב?)(?:שדרות|שד'|שדרת|דרך|סמטת|סמ'|כיכר|מעלה|נתיב|שביל)$/;
+      let typed=false;
       for(let i=words.length-1;i>0;i--){
         const w=words[i-1], w2=words.slice(Math.max(0,i-2),i).join(' ');
+        if(STYPE.test(w)){ typed=true; words=words.slice(KEEP_TYPE.test(w)?i-1:i); if(KEEP_TYPE.test(w)) words[0]=words[0].replace(/^ו?ב/,''); break; }
         if(isCityWord(w)||isCityWord(w2)||COMMON.test(w)||LEAD_WORDS.test(w)){ words=words.slice(i); break; }
       }
       // מילות פתיחה בתחילת הרחוב ("בכתובות", "יש לי את")
-      while(words.length && (LEAD_WORDS.test(words[0]) || COMMON.test(words[0]) || isCityWord(words[0]))) words.shift();
+      while(words.length && !KEEP_TYPE.test(words[0]) && (LEAD_WORDS.test(words[0]) || COMMON.test(words[0]) || (!typed && isCityWord(words[0])))) words.shift();
       if(!words.length) continue;
       // תחילית ב/ל צמודה לרחוב ("ברחוב"/"בהרצל") \u2014 מסירים רק "ברחוב"/"ברח'" מפורשים
       words[0]=words[0].replace(/^(?:ברחוב|ברח')/, '');
@@ -4833,7 +4843,7 @@ function parseLeadsText(raw, ctx){
       if(/^[בל]ה[\u0590-\u05ff]{2,}/.test(words[0])) words[0]=words[0].slice(1);
       const street=words.join(' ');
       const w0=words[0].replace(/^(?:וב|ול|ומ|ב|ל|מ|ו)(?=[\u0590-\u05ff]{2})/,'');
-      if(BAD_STREET.test(words[0]) || BAD_STREET.test(w0) || BAD_STREET.test(street) || isCityWord(street)) continue;
+      if(BAD_STREET.test(words[0]) || BAD_STREET.test(w0) || BAD_STREET.test(street) || (isCityWord(street) && !typed)) continue;
       if(/^\d/.test(street)) continue;
       const n1=parseInt(num,10); if(!n1 || n1>999) continue;          // מספרי בית עד 999; שנים (1998) נפסלות
       if(street.replace(/['".]/g,'').length<2) continue;
@@ -4856,11 +4866,11 @@ function parseLeadsText(raw, ctx){
   const lineOf=pos=>text.slice(0,pos).split('\n').length-1;
   const distinctCities=[...new Set(cityHits.map(h=>h.city))];
   merged.forEach(a=>{
-    const same=cityHits.filter(h=>lineOf(h.start)===a.line);
+    const same=cityHits.filter(h=>lineOf(h.start)===a.line && !(h.start>=a.start && h.end<=a.end));
     const after=same.filter(h=>h.start>=a.end-1).sort((x,y)=>x.start-y.start)[0];
     const before=same.filter(h=>h.end<=a.start+1).sort((x,y)=>y.start-x.start)[0];
     // עיר בכותרת שמעל ("בתל אביב:") \u2014 המופע הקרוב ביותר לפני הכתובת, עד 3 שורות אחורה
-    const prevHit=cityHits.filter(h=>h.end<=a.start && a.line-lineOf(h.start)<=3).sort((x,y)=>y.start-x.start)[0];
+    const prevHit=cityHits.filter(h=>h.end<=a.start && a.line-lineOf(h.start)<=3 && !(h.start>=a.start && h.end<=a.end)).sort((x,y)=>y.start-x.start)[0];
     a.city = after ? after.city : before ? before.city : prevHit ? prevHit.city : (distinctCities.length===1 ? distinctCities[0] : '');
     a.address=(a.street+' '+a.num+(a.street2?' '+a.street2.join(' '):'')).replace(/\s+/g,' ').trim();
     // יח"ד באותה שורה
@@ -4882,7 +4892,8 @@ function parseLeadsText(raw, ctx){
   // ── פרטים משותפים ──
   const PHONE_RE=/(?:\+972[-\s]?|0)(?:5\d|[2-4]|[89]|7\d)[-\s]?\d{3}[-\s]?\d{4}/;
   const MAIL_RE=/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/;
-  const ph=text.match(PHONE_RE); if(ph) out.shared.phone=ph[0].replace(/[\s-]/g,'').replace(/^\+972/,'0');
+  const phText = ctx.docMode ? lines.filter(l=>!/(?:www\.|\.co\.il|פקס|משרד|עו"ד|ת\.ד|מיקוד)/.test(l)).join('\n') : text;
+  const ph=phText.match(PHONE_RE); if(ph) out.shared.phone=ph[0].replace(/[\s-]/g,'').replace(/^\+972/,'0');
   const em=text.match(MAIL_RE); if(em) out.shared.email=em[0];
   out.shared.type=_ptype(text);
   // מועד הגשה / תגובה: "עד התאריך 29.10.2026", "עד ה-29/10/26", "מועד הגשה: 29.10.2026"
@@ -5048,10 +5059,10 @@ document.addEventListener('paste', e=>{
   const ov=document.getElementById('formOverlay');
   if(!ov || !ov.classList.contains('open')) return;
   const items=[...((e.clipboardData&&e.clipboardData.items)||[])];
-  const it=items.find(i=>i.kind==='file' && /^image\//.test(i.type));
+  const it=items.find(i=>i.kind==='file' && (/^image\//.test(i.type) || i.type==='application/pdf' || /wordprocessingml/.test(i.type)));
   if(!it) return;
   e.preventDefault();
-  ocrFromFile(it.getAsFile());
+  intakeFile(it.getAsFile());
 });
 
 // הקשר לפענוח: ערים (כולל הכתיב שכבר נפוץ במערכת), מארגנים קיימים, היום
@@ -5066,10 +5077,170 @@ function _leadParseCtx(){
   return {cities:[...new Set([...(typeof KNOWN_CITIES!=='undefined'?KNOWN_CITIES:[]), ...Object.keys(cnt)])], cityPref:pref, organizers:orgs, today:todayIL()};
 }
 
+
+// ══ קליטה ממסמכים: PDF ו-Word (docx) ═════════════════════════════════════════
+// PDF רגיל — הטקסט נשלף ישירות מהקובץ. עמוד סרוק (בלי טקסט) — הופך לתמונה ועובר זיהוי טקסט.
+// Word (docx) — הטקסט נקרא ישירות מהקובץ. הכול רץ במכשיר; הקובץ לא נשלח לשום מקום.
+const PDFJS_BASE='https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/';
+const DOC_MAX_PAGES=3;        // הפרטים (כתובת, מועד) נמצאים בעמודים הראשונים; בהמשך — נספחים ורעש
+const DOC_MAX_BYTES=30*1024*1024;
+const DOC_MAX_CHARS=8000;
+let _pdfjsP=null;
+function _loadPdfjs(){
+  if(!_pdfjsP){
+    _pdfjsP=import(PDFJS_BASE+'legacy/build/pdf.min.mjs').then(m=>{
+      m.GlobalWorkerOptions.workerSrc=PDFJS_BASE+'legacy/build/pdf.worker.min.mjs'; return m;
+    }).catch(e=>{ _pdfjsP=null; console.error(e); throw new Error('טעינת קורא ה-PDF נכשלה — בדוק חיבור לאינטרנט'); });
+  }
+  return _pdfjsP;
+}
+// פריטי טקסט של עמוד → שורות, לפי מיקום. שורה בעברית — מימין לשמאל.
+function _pdfLines(items){
+  const its=items.filter(i=>i && typeof i.str==='string' && i.str.trim()!=='' && i.transform)
+    .map(i=>({s:i.str, x:i.transform[4], y:i.transform[5], w:i.width||0, h:Math.abs(i.height||i.transform[3]||10), rtl:i.dir==='rtl' || /[֐-׿]/.test(i.str)}));
+  its.sort((a,b)=>b.y-a.y);
+  const lines=[];
+  its.forEach(it=>{
+    const L=lines.find(l=>Math.abs(l.y-it.y) <= Math.max(2, Math.min(l.h,it.h)*0.5));
+    if(L){ L.items.push(it); } else lines.push({y:it.y, h:it.h, items:[it]});
+  });
+  lines.sort((a,b)=>b.y-a.y);
+  return lines.map(l=>{
+    const rtl=l.items.filter(i=>i.rtl).length >= l.items.length/2;
+    const arr=l.items.slice().sort((a,b)=> rtl ? (b.x+b.w)-(a.x+a.w) : a.x-b.x);
+    let out='';
+    arr.forEach((it,k)=>{
+      if(k){ const prev=arr[k-1]; const gap = rtl ? prev.x-(it.x+it.w) : it.x-(prev.x+prev.w);
+        if(gap > it.h*0.15 && !/\s$/.test(out) && !/^\s/.test(it.s)) out+=' '; }
+      out+=it.s;
+    });
+    return out.replace(/\s+/g,' ').trim();
+  }).filter(Boolean).join('\n');
+}
+async function pdfToText(file, onStatus){
+  const pdfjs=await _loadPdfjs();
+  const data=new Uint8Array(await file.arrayBuffer());
+  const doc=await pdfjs.getDocument({data, isEvalSupported:false, disableFontFace:true, useSystemFonts:false,
+    cMapUrl:PDFJS_BASE+'cmaps/', cMapPacked:true}).promise;
+  const n=Math.min(doc.numPages, DOC_MAX_PAGES);
+  const pages=[]; let scanned=0;
+  try{
+    for(let i=1;i<=n;i++){
+      const page=await doc.getPage(i);
+      let t=_pdfLines((await page.getTextContent()).items);
+      if(t.replace(/\s/g,'').length<40){
+        // עמוד סרוק — מציירים אותו ומזהים טקסט
+        scanned++;
+        onStatus && onStatus('🔎 עמוד '+i+' סרוק — מזהה טקסט…');
+        const vp0=page.getViewport({scale:1}), sc=Math.min(2.5, 2400/Math.max(vp0.width,vp0.height));
+        const vp=page.getViewport({scale:sc});
+        const cv=document.createElement('canvas'); cv.width=Math.ceil(vp.width); cv.height=Math.ceil(vp.height);
+        const g=cv.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,cv.width,cv.height);
+        await page.render({canvasContext:g, viewport:vp}).promise;
+        const blob=await new Promise(r=>cv.toBlob(r,'image/png'));
+        t=blob ? await ocrImageToText(blob) : '';
+      }
+      pages.push(t);
+      page.cleanup && page.cleanup();
+    }
+  } finally { try{ await doc.destroy(); }catch(e){} }
+  return {text:pages.join('\n').slice(0,DOC_MAX_CHARS), pages:doc.numPages, used:n, scanned};
+}
+// קורא ZIP מינימלי (docx הוא ZIP) — בלי ספרייה חיצונית
+async function _zipEntryText(buf, name){
+  const dv=new DataView(buf), u8=new Uint8Array(buf);
+  let e=buf.byteLength-22;
+  while(e>=0 && dv.getUint32(e,true)!==0x06054b50) e--;
+  if(e<0) throw new Error('הקובץ פגום או שאינו Word (docx)');
+  const cnt=dv.getUint16(e+10,true); let p=dv.getUint32(e+16,true);
+  const dec=new TextDecoder();
+  for(let i=0;i<cnt;i++){
+    if(dv.getUint32(p,true)!==0x02014b50) break;
+    const method=dv.getUint16(p+10,true), csize=dv.getUint32(p+20,true);
+    const nlen=dv.getUint16(p+28,true), xlen=dv.getUint16(p+30,true), clen=dv.getUint16(p+32,true), loff=dv.getUint32(p+42,true);
+    const fname=dec.decode(u8.subarray(p+46,p+46+nlen));
+    if(fname===name){
+      const start=loff+30+dv.getUint16(loff+26,true)+dv.getUint16(loff+28,true);
+      const raw=u8.subarray(start,start+csize);
+      if(method===0) return dec.decode(raw);
+      if(method===8){
+        if(typeof DecompressionStream==='undefined') throw new Error('הדפדפן לא תומך בפתיחת קובצי Word — עדכן את הדפדפן');
+        const ab=await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+        return dec.decode(ab);
+      }
+      throw new Error('שיטת דחיסה לא נתמכת');
+    }
+    p+=46+nlen+xlen+clen;
+  }
+  throw new Error('לא נמצא תוכן בקובץ ה-Word');
+}
+async function docxToText(file){
+  const xml=await _zipEntryText(await file.arrayBuffer(), 'word/document.xml');
+  const d=new DOMParser().parseFromString(xml,'application/xml');
+  const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const body=d.getElementsByTagNameNS(W,'body')[0]; if(!body) return '';
+  const pText=pEl=>{ let s=''; pEl.querySelectorAll('*').forEach(n=>{
+      if(n.namespaceURI!==W) return;
+      if(n.localName==='t') s+=n.textContent; else if(n.localName==='tab') s+=' '; else if(n.localName==='br'||n.localName==='cr') s+='\n'; });
+    return s; };
+  const out=[];
+  [...body.children].forEach(el=>{
+    if(el.localName==='p') out.push(pText(el));
+    else if(el.localName==='tbl') el.getElementsByTagNameNS(W,'tr').length && [...el.getElementsByTagNameNS(W,'tr')].forEach(tr=>{
+      out.push([...tr.getElementsByTagNameNS(W,'tc')].map(tc=>[...tc.getElementsByTagNameNS(W,'p')].map(pText).join(' ').trim()).filter(Boolean).join(' | ')); });
+  });
+  return out.join('\n').replace(/\n{3,}/g,'\n\n').slice(0,DOC_MAX_CHARS);
+}
+function _fileKind(file){
+  const n=(file.name||'').toLowerCase(), t=(file.type||'').toLowerCase();
+  if(/^image\//.test(t) || /\.(png|jpe?g|webp|heic|gif|bmp)$/.test(n)) return 'image';
+  if(t==='application/pdf' || n.endsWith('.pdf')) return 'pdf';
+  if(t.includes('wordprocessingml') || n.endsWith('.docx')) return 'docx';
+  if(t==='application/msword' || n.endsWith('.doc')) return 'doc';
+  return '';
+}
+// נקודת כניסה אחת: תמונה / PDF / Word
+async function intakeFile(file){
+  if(!file) return;
+  const kind=_fileKind(file);
+  if(kind==='image') return ocrFromFile(file);
+  if(kind==='doc'){ _ocrStatus('⚠️ זה קובץ Word בפורמט ישן (.doc). פתח אותו ב-Word ושמור בשם כ-docx או כ-PDF, ואז נסה שוב.','err'); return; }
+  if(!kind){ _ocrStatus('⚠️ סוג קובץ לא נתמך. אפשר: תמונה, PDF או Word (docx).','err'); return; }
+  if(_ocrBusy){ toast('⏳ קריאה קודמת עדיין רצה'); return; }
+  if(file.size>DOC_MAX_BYTES){ _ocrStatus('⚠️ הקובץ גדול מדי (עד 30MB).','err'); return; }
+  _ocrBusy=true;
+  const btn=document.getElementById('ocrBtn'); if(btn) btn.disabled=true;
+  _ocrStatus(kind==='pdf'?'⏳ קורא את ה-PDF…':'⏳ קורא את קובץ ה-Word…');
+  window._ocrOnLog=m=>{ if(m.status==='recognizing text') _ocrStatus('🔎 מזהה טקסט בעמוד סרוק… '+Math.round((m.progress||0)*100)+'%'); };
+  try{
+    let text='', info='';
+    if(kind==='pdf'){
+      const r=await pdfToText(file, s=>_ocrStatus(s));
+      text=r.text;
+      if(r.pages>r.used) info=' (נקראו '+r.used+' העמודים הראשונים מתוך '+r.pages+')';
+    } else text=await docxToText(file);
+    _ocrStatus('');
+    if(!text.trim()){ _ocrStatus('⚠️ לא נמצא טקסט בקובץ.','err'); return; }
+    applyParsedText(text, {fromImage:true, doc:true, fileName:file.name||'', srcLabel:(kind==='pdf'?'מה-PDF':'מקובץ ה-Word'), srcNote:info});
+  }catch(e){
+    console.error('document intake failed', e);
+    const msg=/password|encrypt/i.test((e&&e.name)+' '+(e&&e.message)) ? 'ה-PDF מוגן בסיסמה — אי אפשר לקרוא אותו' : ((e&&e.message)||'קריאת הקובץ נכשלה');
+    _ocrStatus('⚠️ '+escHtml(msg)+'.','err');
+  }finally{
+    _ocrBusy=false; window._ocrOnLog=null; if(btn) btn.disabled=false;
+  }
+}
+// גרירת קובץ לתיבה
+document.addEventListener('dragover', e=>{ const b=e.target && e.target.closest && e.target.closest('#ocrBox'); if(b){ e.preventDefault(); b.classList.add('drag'); } });
+document.addEventListener('dragleave', e=>{ const b=e.target && e.target.closest && e.target.closest('#ocrBox'); if(b) b.classList.remove('drag'); });
+document.addEventListener('drop', e=>{ const b=e.target && e.target.closest && e.target.closest('#ocrBox'); if(!b) return;
+  e.preventDefault(); b.classList.remove('drag'); const f=e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if(f) intakeFile(f); });
+
 // מחלק את התוצאה: ליד אחד → ממלא את הטופס; כמה → חלון בדיקה
 function applyParsedText(text, opt){
   opt=opt||{};
-  const res=parseLeadsText(text, _leadParseCtx());
+  const res=parseLeadsText(text, Object.assign(_leadParseCtx(), {docMode:!!opt.doc}));
+  if(opt.fileName) res.shared.notes=[res.shared.notes, 'קובץ: '+opt.fileName].filter(Boolean).join(' | ');
   window._lastParsed=res;
   if(res.leads.length>=2){ openLeadsReview(res, opt); return res; }
   _fillFormFromParsed(res, opt);
@@ -5091,8 +5262,10 @@ function _fillFormFromParsed(res, opt){
   try{ _saveLeadDraft(); }catch(e){}
   _ocrShowText(res.text);
   if(opt.fromImage){
-    if(filled.length) _ocrStatus('✨ זוהו מצילום המסך: '+escHtml(filled.join(', '))+'. השדות הצהובים מולאו אוטומטית — בדוק לפני שמירה.','ok');
-    else _ocrStatus('⚠️ לא זוהו פרטי ליד בתמונה. הטקסט שזוהה מופיע למטה — אפשר להעתיק ממנו.','err');
+    const src=opt.srcLabel||'מצילום המסך';
+    const note=escHtml(opt.srcNote||'');
+    if(filled.length) _ocrStatus('✨ זוהו '+escHtml(src)+note+': '+escHtml(filled.join(', '))+'. השדות הצהובים מולאו אוטומטית — בדוק לפני שמירה.','ok');
+    else _ocrStatus('⚠️ לא זוהו פרטי ליד '+escHtml(opt.doc?'במסמך':'בתמונה')+note+'. הטקסט שזוהה מופיע למטה — אפשר להעתיק ממנו.','err');
   }
   return filled;
 }
@@ -5131,7 +5304,7 @@ function openLeadsReview(res, opt){
   const m=document.createElement('div'); m.id='_lrModal'; m.className='lr-overlay';
   m.innerHTML=`<div class="lr-card" role="dialog" aria-modal="true" aria-labelledby="_lrTitle">
     <div class="lr-head">
-      <div id="_lrTitle" class="lr-title">${opt&&opt.fromImage?'📷':'💬'} זוהו ${res.leads.length} לידים — בדוק לפני הוספה</div>
+      <div id="_lrTitle" class="lr-title">${opt&&opt.doc?'📄':opt&&opt.fromImage?'📷':'💬'} זוהו ${res.leads.length} לידים — בדוק לפני הוספה</div>
       <button type="button" class="lr-x" onclick="closeLeadsReview()" aria-label="סגור">✕</button>
     </div>
     <div class="lr-body">
