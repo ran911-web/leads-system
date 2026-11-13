@@ -866,6 +866,7 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
           <div style="padding:4px 0">
             <label class="st-opt"><input type="checkbox" value="חדש" onchange="renderTable()" checked> חדש</label>
             <label class="st-opt"><input type="checkbox" value="בבדיקה" onchange="renderTable()" checked> בבדיקה</label>
+            <label class="st-opt"><input type="checkbox" value="נבדק פנימית - להעביר לבדיקה אדריכלית" onchange="renderTable()" checked> נבדק פנימית - להעביר לבדיקה אדריכלית</label>
             <label class="st-opt"><input type="checkbox" value="בבדיקה אדריכלית" onchange="renderTable()" checked> בבדיקה אדריכלית</label>
             <label class="st-opt"><input type="checkbox" value="נשלחה הצעה" onchange="renderTable()" checked> נשלחה הצעה</label>
             <label class="st-opt"><input type="checkbox" value="ממתין לכנס דיירים" onchange="renderTable()" checked> ממתין לכנס דיירים</label>
@@ -1010,7 +1011,7 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
             <select id="bulk_source"><option>וואטספ</option><option>מייל</option><option>טלפון</option><option>המלצה</option><option>פגישה</option><option>אחר</option></select>
           </div>
           <div class="form-group"><label>סטטוס</label>
-            <select id="bulk_status"><option>חדש</option><option>בבדיקה</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
+            <select id="bulk_status"><option>חדש</option><option>בבדיקה</option><option>נבדק פנימית - להעביר לבדיקה אדריכלית</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
           </div>
           <div class="form-group"><label>תאריך לתגובה</label>
             <input type="date" id="bulk_deadline">
@@ -1202,7 +1203,7 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
         <input type="tel" id="f_phone" placeholder="050-0000000" style="direction:ltr">
       </div>
       <div class="form-group"><label>סטטוס</label>
-        <select id="f_status" onchange="toggleFormStatusFields()"><option>חדש</option><option>בבדיקה</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
+        <select id="f_status" onchange="toggleFormStatusFields()"><option>חדש</option><option>בבדיקה</option><option>נבדק פנימית - להעביר לבדיקה אדריכלית</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
       </div>
       <div class="form-group" id="f_irrelGroup" style="display:none">
         <label>סיבת אי-רלוונטיות</label>
@@ -1237,7 +1238,7 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
     <div class="form-title" id="editTitle">✏️ עריכת ליד</div>
     <div class="form-grid">
       <div class="form-group"><label>סטטוס</label>
-        <select id="e_status" onchange="toggleWinCompany()"><option>חדש</option><option>בבדיקה</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
+        <select id="e_status" onchange="toggleWinCompany()"><option>חדש</option><option>בבדיקה</option><option>נבדק פנימית - להעביר לבדיקה אדריכלית</option><option>בבדיקה אדריכלית</option><option>נשלחה הצעה</option><option>ממתין לכנס דיירים</option><option>התקיים כנס - ממתינים להחלטה</option><option>התקבלה הודעת זכייה 🏆</option><option>לא רלוונטי ❌</option><option>נבדק אדריכלית - ממתין לתקציב</option><option>נבדק כלכלית ואדריכלית - להגיש הצעה</option><option>השלמת נתונים</option></select>
       </div>
 <div class="form-group full">
         <label>כתובת הפרויקט *</label>
@@ -1664,13 +1665,14 @@ input.ocr-filled,select.ocr-filled,textarea.ocr-filled{background:#fef9c3!import
 let today = todayIL(); // מתעדכן ב-visibilitychange/focus אם היום השתנה
 // Status color lookup (early definition so renderTable can use it)
 // ═══════════════════════════════════════════════════════════════════════════
-// STATUS_DEFINITIONS — מקור אמת יחיד לכל הסטטוסים (11)
+// STATUS_DEFINITIONS — מקור אמת יחיד לכל הסטטוסים (12)
 // כל מקום במערכת (טפסים, פילטר, ייבוא, ייצוא, PDF, מסה, דאשבורד, אנליטיקה,
 // CLOSED, statusColor) נגזר מכאן. אין לשכפל רשימות סטטוסים.
 // ═══════════════════════════════════════════════════════════════════════════
 const STATUS_DEFINITIONS = [
   { name:"חדש",                                closed:false, won:false, irrelevant:false, colors:{bg:"#dbeafe",border:"#2563eb",text:"#1e3a8a",badge:"#93c5fd"} },
   { name:"בבדיקה",                             closed:false, won:false, irrelevant:false, colors:{bg:"#fef9c3",border:"#d97706",text:"#78350f",badge:"#fde047"} },
+  { name:"נבדק פנימית - להעביר לבדיקה אדריכלית", closed:false, won:false, irrelevant:false, colors:{bg:"#e0e7ff",border:"#4f46e5",text:"#312e81",badge:"#a5b4fc"} },
   { name:"בבדיקה אדריכלית",                    closed:false, won:false, irrelevant:false, colors:{bg:"#ede9fe",border:"#7c3aed",text:"#4c1d95",badge:"#c4b5fd"} },
   { name:"נשלחה הצעה",                         closed:false, won:false, irrelevant:false, colors:{bg:"#ffedd5",border:"#ea580c",text:"#7c2d12",badge:"#fdba74"} },
   { name:"ממתין לכנס דיירים",                  closed:false, won:false, irrelevant:false, colors:{bg:"#d1fae5",border:"#059669",text:"#064e3b",badge:"#6ee7b7"} },
@@ -3731,11 +3733,13 @@ function renderPipelineCard(){
   const withBudget  = active.filter(l=>l.budget==='כן');
   const waitApprove = active.filter(l=>typeof needsOwnerApproval==='function' && needsOwnerApproval(l) && !l.ownerApproved);
   const approved    = active.filter(l=>l.ownerApproved);
+  const internal    = active.filter(l=>l.status==='נבדק פנימית - להעביר לבדיקה אדריכלית');
   const arch        = active.filter(l=>l.status==='בבדיקה אדריכלית');
   const toPropose   = active.filter(l=>l.status==='נבדק כלכלית ואדריכלית - להגיש הצעה');
   const proposed    = active.filter(l=>l.status==='נשלחה הצעה');
 
   const rows=[
+    {icon:'🔍', label:'נבדק פנימית — להעביר לאדריכל', n:internal.length, col:'#4f46e5', st:'נבדק פנימית - להעביר לבדיקה אדריכלית'},
     {icon:'📐', label:'בבדיקה אדריכלית',      n:arch.length,        col:'#6a28a0', st:'בבדיקה אדריכלית'},
     {icon:'💰', label:'הוכן תקציב',            n:withBudget.length,  col:'var(--blue)'},
     {icon:'⏳', label:'ממתין לאישור בעלים',    n:waitApprove.length, col:waitApprove.length?'var(--orange)':'var(--green)', hi:waitApprove.length>0},
@@ -6243,7 +6247,7 @@ function renderAnalytics(){
     if(l.status===st) return true;
     return (l.history||[]).some(h=>(h.changes||[]).some(c=>c.field==='סטטוס'&&(c.from===st||c.to===st)));
   }
-  const fc_stages=["בבדיקה","בבדיקה אדריכלית","נבדק אדריכלית - ממתין לתקציב","השלמת נתונים","נבדק כלכלית ואדריכלית - להגיש הצעה","נשלחה הצעה","ממתין לכנס דיירים","התקיים כנס - ממתינים להחלטה"];
+  const fc_stages=["בבדיקה","נבדק פנימית - להעביר לבדיקה אדריכלית","בבדיקה אדריכלית","נבדק אדריכלית - ממתין לתקציב","השלמת נתונים","נבדק כלכלית ואדריכלית - להגיש הצעה","נשלחה הצעה","ממתין לכנס דיירים","התקיים כנס - ממתינים להחלטה"];
   const fc_closed=AL.filter(l=>l.status===WON||l.status===IRREL);
   let fc_total=0;
   const fc_rows=fc_stages.map(st=>{
@@ -6625,14 +6629,14 @@ async function exportExcel(){
         try{const[y,m,day]=d.split('-');return`${day}/${m}/${y}`;}catch{return d;}
       }
       function statusFill(s){
-        const m={'חדש':bLtF,'בבדיקה':ylLtF,'בבדיקה אדריכלית':tlLtF,'נשלחה הצעה':prLtF,
+        const m={'חדש':bLtF,'בבדיקה':ylLtF,'נבדק פנימית - להעביר לבדיקה אדריכלית':bAltF,'בבדיקה אדריכלית':tlLtF,'נשלחה הצעה':prLtF,
           'ממתין לכנס דיירים':bAltF,'התקיים כנס - ממתינים להחלטה':orLtF,
           'נבדק אדריכלית - ממתין לתקציב':tlLtF,'נבדק כלכלית ואדריכלית - להגיש הצעה':prLtF,'השלמת נתונים':bLtF,
           'התקבלה הודעת זכייה 🏆':gLtF,'לא רלוונטי ❌':grLtF};
         return m[s]||wF;
       }
       function statusTxtColor(s){
-        const m={'חדש':P.blue,'בבדיקה':P.yellow,'בבדיקה אדריכלית':P.teal,'נשלחה הצעה':P.purple,
+        const m={'חדש':P.blue,'בבדיקה':P.yellow,'נבדק פנימית - להעביר לבדיקה אדריכלית':P.navy3,'בבדיקה אדריכלית':P.teal,'נשלחה הצעה':P.purple,
           'ממתין לכנס דיירים':P.navy3,'התקיים כנס - ממתינים להחלטה':P.orange,
           'נבדק אדריכלית - ממתין לתקציב':P.teal,'נבדק כלכלית ואדריכלית - להגיש הצעה':P.purple,'השלמת נתונים':P.blue,
           'התקבלה הודעת זכייה 🏆':P.green,'לא רלוונטי ❌':P.gray};
@@ -6882,7 +6886,7 @@ async function exportExcel(){
       }
 
       // COL 1: Status
-      const stData=[["חדש"],["בבדיקה"],["בבדיקה אדריכלית"],["נשלחה הצעה"],["ממתין לכנס דיירים"],["התקיים כנס - ממתינים להחלטה"],["נבדק אדריכלית - ממתין לתקציב"],["נבדק כלכלית ואדריכלית - להגיש הצעה"],["השלמת נתונים"],["התקבלה הודעת זכייה 🏆"],["לא רלוונטי ❌"]]
+      const stData=[["חדש"],["בבדיקה"],["נבדק פנימית - להעביר לבדיקה אדריכלית"],["בבדיקה אדריכלית"],["נשלחה הצעה"],["ממתין לכנס דיירים"],["התקיים כנס - ממתינים להחלטה"],["נבדק אדריכלית - ממתין לתקציב"],["נבדק כלכלית ואדריכלית - להגיש הצעה"],["השלמת נתונים"],["התקבלה הודעת זכייה 🏆"],["לא רלוונטי ❌"]]
         .map(([s])=>[s, leads.filter(l=>l.status===s).length, Math.round(leads.filter(l=>l.status===s).length/tot*100)+'%']);
       statSection(ws3,'📊 פילוח סטטוס',1,sr,['סטטוס','כמות','%'],stData,(ci,row)=>{
         if(ci===0)return statusFill(row[0]);
@@ -7124,7 +7128,7 @@ async function importFromExcel(event){
 
       if(colIdx.address===undefined||colIdx.city===undefined){toast("⚠️ לא נמצאו עמודות כתובת/עיר");return;}
 
-      // כל 11 הסטטוסים — מסונכרן עם רשימת המערכת
+      // כל הסטטוסים — מסונכרן עם רשימת המערכת (STATUS_NAMES)
       const validSt=STATUS_NAMES;
 
       // מעבר ראשון: איסוף סטטוסים לא מוכרים — אזהרה לפני שינוי
